@@ -1,4 +1,4 @@
-import type { ApiProvider } from "@/pages/Index";
+import type { ApiProvider } from "@/types";
 import type { ToolDefinition, McpServerConfig, ExecutionMode } from "@/lib/api";
 import type { McpDiscoveryResult } from "@/components/chat/useChatLogic";
 import type { ToolTrace } from "@/lib/toolExecutor";

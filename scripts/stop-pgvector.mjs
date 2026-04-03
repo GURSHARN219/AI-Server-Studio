@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const CONTAINER_NAME = "goclaw-pgvector";
+const CONTAINER_NAME = "aistclaw-pgvector";
 
 function run(cmd) {
   return execSync(cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -38,11 +38,16 @@ function parseEnvFile(filePath) {
 }
 
 function resolveDsn() {
-  if (process.env.GOCLAW_POSTGRES_DSN) return process.env.GOCLAW_POSTGRES_DSN;
+  if (process.env.AISTCLAW_POSTGRES_DSN) return process.env.AISTCLAW_POSTGRES_DSN;
+  if (process.env.AISTCLAW_POSTGRES_DSN) return process.env.AISTCLAW_POSTGRES_DSN;
   const cwd = process.cwd();
   const env = parseEnvFile(join(cwd, ".env"));
   const envLocal = parseEnvFile(join(cwd, ".env.local"));
-  return envLocal.GOCLAW_POSTGRES_DSN || env.GOCLAW_POSTGRES_DSN || "";
+  return envLocal.AISTCLAW_POSTGRES_DSN
+    || env.AISTCLAW_POSTGRES_DSN
+    || envLocal.AISTCLAW_POSTGRES_DSN
+    || env.AISTCLAW_POSTGRES_DSN
+    || "";
 }
 
 function main() {
@@ -64,7 +69,7 @@ function main() {
   }
 
   run(`docker stop ${CONTAINER_NAME}`);
-  console.log("[pgvector] Stopped goclaw-pgvector.");
+  console.log("[pgvector] Stopped aistclaw-pgvector.");
 }
 
 main();

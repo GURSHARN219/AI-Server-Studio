@@ -30,6 +30,7 @@ func (s *Server) handleCreateAgentRun(w http.ResponseWriter, r *http.Request) {
 	if req.ModelName == "" {
 		req.ModelName = s.eng.GetModelName()
 	}
+	req.ExecutionMode = normalizeAgentExecutionMode(req.ExecutionMode)
 	filteredTools, droppedTools := filterBackendAgentTools(req.Tools)
 	req.Tools = filteredTools
 	if len(droppedTools) > 0 {
@@ -58,6 +59,9 @@ func (s *Server) executeAgentRun(run *agentRun, req agentRunCreateReq) {
 			Name:    "Local Server",
 			BaseURL: "http://localhost/v1",
 		}
+	}
+	if req.ExecutionMode == "" {
+		req.ExecutionMode = agentExecutionModeOnline
 	}
 
 	if isLocalProvider(req.Provider.BaseURL) && !s.eng.IsModelLoaded() {
@@ -210,11 +214,11 @@ func (s *Server) executeAgentStep(
 ) (string, error) {
 	messages := []map[string]interface{}{
 		{
-			"role": "system",
+			"role":    "system",
 			"content": "You are an autonomous backend agent. If a tool is needed, call one tool at a time. When done, answer directly.",
 		},
 		{
-			"role": "user",
+			"role":    "user",
 			"content": fmt.Sprintf("Goal: %s\nCurrent step: %s\nCompleted:\n%s", run.Goal, stepDesc, strings.Join(completed, "\n")),
 		},
 	}
@@ -231,7 +235,7 @@ func (s *Server) executeAgentStep(
 
 		if len(resp.ToolCalls) > 0 {
 			tc := resp.ToolCalls[0]
-			obs, toolErr := s.executeAgentTool(tc.Function.Name, tc.Function.Arguments)
+			obs, toolErr := s.executeAgentToolWithRetry(tc.Function.Name, tc.Function.Arguments, req.ExecutionMode)
 			if toolErr != nil {
 				obs = fmt.Sprintf("tool error: %v", toolErr)
 			}

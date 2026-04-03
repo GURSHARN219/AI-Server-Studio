@@ -304,30 +304,44 @@ describe("executeToolCall (shim)", () => {
 // ── builtInTools — legacy alias resolution ────────────────────────────────────
 
 describe("executeBuiltInTool — legacy aliases", () => {
-  it("web-search resolves to web.search handler (calls supabase)", async () => {
-    const { supabase } = await import("@/integrations/supabase/client");
-    vi.mocked(supabase.functions.invoke).mockResolvedValue({
-      data: { results: [] }, error: null
+  it("web-search resolves to web.search handler (calls backend tool endpoint)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [] }),
+      text: async () => "",
+      statusText: "OK",
     } as any);
 
     const result = await executeBuiltInTool("web-search", { query: "test" }, "online");
-    expect(supabase.functions.invoke).toHaveBeenCalledWith("tool-execute", expect.objectContaining({
-      body: expect.objectContaining({ tool: "web-search" }),
-    }));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/\/v1\/tools\/execute$/),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ tool: "web-search", args: { query: "test" } }),
+      }),
+    );
     expect(typeof result).toBe("string");
+    fetchSpy.mockRestore();
   });
 
-  it("url-fetch resolves to web.fetch handler", async () => {
-    const { supabase } = await import("@/integrations/supabase/client");
-    vi.mocked(supabase.functions.invoke).mockResolvedValue({
-      data: { content: "page" }, error: null
+  it("url-fetch resolves to web.fetch handler (calls backend tool endpoint)", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ content: "page" }),
+      text: async () => "",
+      statusText: "OK",
     } as any);
 
     const result = await executeBuiltInTool("url-fetch", { url: "https://example.com" }, "online");
-    expect(supabase.functions.invoke).toHaveBeenCalledWith("tool-execute", expect.objectContaining({
-      body: expect.objectContaining({ tool: "url-fetch" }),
-    }));
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/\/v1\/tools\/execute$/),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ tool: "url-fetch", args: { url: "https://example.com" } }),
+      }),
+    );
     expect(typeof result).toBe("string");
+    fetchSpy.mockRestore();
   });
 
   it("knowledge-base resolves to kb.search handler", async () => {

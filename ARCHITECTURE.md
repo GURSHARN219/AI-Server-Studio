@@ -41,6 +41,7 @@
 23. [Component Inventory](#23-component-inventory)
 24. [API Reference (Engine)](#24-api-reference-engine)
 25. [Key Data Types](#25-key-data-types)
+26. [Current Implementation Addendum (April 2026)](#26-current-implementation-addendum-april-2026)
 
 ---
 
@@ -2604,4 +2605,87 @@ GET  /v1/download/progress?filename=...  → { progress, bytes_received, total_b
 
 ---
 
-*Generated from full codebase read — covers all files in `src/`, `extensions/`, and `electron/`.*
+## 26. Current Implementation Addendum (April 2026)
+
+This section captures architecture details that changed after the original diagrams and route notes were authored.
+
+### 26.1 Runtime mode and process defaults
+
+- Desktop development defaults to **dual-process mode** (`AIST_SINGLE_ENGINE=0` unless explicitly set).
+- Packaged desktop defaults to **single-engine supervision** (`AIST_SINGLE_ENGINE=1`).
+- Electron listens for JSON stdout events from the Go engine process and forwards `engine:port` and `aistclaw:port` to the renderer.
+
+### 26.2 Backend-first desktop data model
+
+Desktop paths are now backend-local first:
+
+- Auth/session and profile data are served by Go routes (`/v1/auth/*`, `/v1/profile*`).
+- Provider, MCP, KB, and usage data are stored in local JSON files under `data/`.
+- `AI_SERVER_DATA_DIR` can override the default data directory.
+
+Primary files include:
+
+- `data/users.json`
+- `data/auth_sessions.json`
+- `data/providers.json`
+- `data/provider_model_prefs.json`
+- `data/mcp_servers.json`
+- `data/documents.json`
+
+### 26.3 Execution mode and tools (current)
+
+- Execution mode in current frontend code is `offline | online`.
+- Canonical built-in tool IDs are namespaced:
+    - `web.search`
+    - `web.fetch`
+    - `kb.search`
+    - `kb.store`
+    - `kb.list`
+- Legacy IDs are mapped via aliasing for compatibility (`web-search`, `url-fetch`, `knowledge-base`, etc.).
+- Sandbox aliases (`js-sandbox`, `python-sandbox`) route to MCP-style names (`sandbox.run_js`, `sandbox.run_python`) and depend on MCP discovery.
+
+### 26.4 Route-group summary from current backend registration
+
+The server registers grouped route modules in this order:
+
+1. models
+2. chat
+3. providers
+4. settings
+5. auth/data
+6. tools
+7. agent runs
+8. system
+9. config
+10. tasks
+11. components
+12. events
+
+Representative endpoints:
+
+- `GET /v1/system/status`
+- `GET /v1/system/backends`
+- `POST /v1/models/load`
+- `POST /v1/chat/completions`
+- `GET /v1/providers/{id}/models`
+- `POST /v1/providers/chat/completions`
+- `POST /v1/tools/execute`
+- `POST /v1/agent/chat`
+- `POST /v1/mcp/proxy`
+
+### 26.5 Startup dependencies and failure points
+
+- `npm run dev:electron` predev steps build Go binaries before Electron launch.
+- Pgvector auto-management scripts are conditional on DSN targeting `localhost:5433`.
+- If Go toolchain is missing, predev build fails before app startup.
+- If Docker is unavailable and DSN expects local pgvector, related backend features can fail.
+
+### 26.6 UI architecture updates
+
+- `ChatPage.tsx` is a thin wrapper around `useChatLogic` + `ChatUI`.
+- Chat state persistence is centralized in Zustand (`chatStore`) with rehydrate cleanup for interrupted generations.
+- `SettingsPage.tsx` is now a shell composing dedicated tab components rather than holding large inlined tab logic.
+
+---
+
+This addendum should be treated as the current source-of-truth layer on top of earlier architecture sections.

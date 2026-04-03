@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import type { ToolItem, ApiProvider } from "@/pages/Index";
+import type { ToolItem, ApiProvider } from "@/types";
 import type { Message, AgentMode, ChatTab, ModelDef } from "@/components/chat/types";
 import { useAgentRunner } from "@/hooks/useAgentRunner";
 import {
@@ -736,7 +736,7 @@ Rules:
             loopMessages,
             modelId,
             backendAgentTools,
-            { maxIterations: 10 },
+            { maxIterations: 10, executionMode },
             controller.signal,
           );
 

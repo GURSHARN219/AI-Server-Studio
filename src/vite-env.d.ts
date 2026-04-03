@@ -6,6 +6,6 @@ interface Window {
     maximize(): Promise<void>;
     close(): Promise<void>;
     onEnginePort(cb: (port: number) => void): void;
-    onGoClawPort(cb: (port: number) => void): void;
+    onAistclawPort(cb: (port: number) => void): void;
   };
 }

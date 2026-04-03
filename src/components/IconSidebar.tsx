@@ -13,7 +13,7 @@ import {
   Mic2,
   Layers,
 } from "lucide-react";
-import type { Page, UserRole } from "@/pages/Index";
+import type { Page, UserRole } from "@/types";
 import { getEnginePort } from "@/lib/localEngine";
 
 interface IconSidebarProps {

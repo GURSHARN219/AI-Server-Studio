@@ -8,41 +8,38 @@
       "@/*": [
         "./src/*"
       ],
-      "@goclaw/api/*": [
-        "./src/api/goclaw/*"
+      "@aistclaw/api/*": [
+        "./src/api/aistclaw/*"
       ],
-      "@goclaw/components/*": [
-        "./src/components/goclaw/*"
+      "@aistclaw/components/*": [
+        "./src/components/aistclaw/*"
       ],
-      "@goclaw/constants/*": [
-        "./src/constants/goclaw/*"
+      "@aistclaw/constants/*": [
+        "./src/constants/aistclaw/*"
       ],
-      "@goclaw/hooks/*": [
-        "./src/hooks/goclaw/*"
+      "@aistclaw/hooks/*": [
+        "./src/hooks/aistclaw/*"
       ],
-      "@goclaw/i18n": [
-        "./src/i18n/goclaw/index.ts"
+      "@aistclaw/i18n": [
+        "./src/i18n/aistclaw/index.ts"
       ],
-      "@goclaw/i18n/*": [
-        "./src/i18n/goclaw/*"
+      "@aistclaw/i18n/*": [
+        "./src/i18n/aistclaw/*"
       ],
-      "@goclaw/lib/*": [
-        "./src/lib/goclaw/*"
+      "@aistclaw/lib/*": [
+        "./src/lib/aistclaw/*"
       ],
-      "@goclaw/pages/*": [
-        "./src/pages/goclaw/*"
+      "@aistclaw/pages/*": [
+        "./src/pages/aistclaw/*"
       ],
-      "@goclaw/routes": [
-        "./src/goclaw/routes.tsx"
+      "@aistclaw/routes": [
+        "./src/aistclaw-routes.tsx"
       ],
-      "@goclaw/stores/*": [
-        "./src/stores/goclaw/*"
+      "@aistclaw/stores/*": [
+        "./src/stores/aistclaw/*"
       ],
-      "@goclaw/types/*": [
-        "./src/types/goclaw/*"
-      ],
-      "@goclaw/*": [
-        "./src/goclaw/*"
+      "@aistclaw/types/*": [
+        "./src/types/aistclaw/*"
       ]
     },
     "skipLibCheck": true,

@@ -174,20 +174,23 @@ Create a `.env` file in the project root:
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
-# Required for GoClaw backend features in Electron mode
-GOCLAW_POSTGRES_DSN=postgres://postgres:postgres@localhost:5432/goclaw?sslmode=disable
+# Required for Aistclaw backend features in Electron mode
+AISTCLAW_POSTGRES_DSN=postgres://postgres:postgres@localhost:5432/aistclaw?sslmode=disable
 ```
 
 ### Development
 
 ```bash
-# Start the dev server (default: http://localhost:8080)
+# Start the dev server (Vite default, usually http://localhost:5173)
 npm run dev
 
-# Start desktop app with Electron (single-engine mode is default)
+# Start desktop app with Electron (dev default is dual-process mode)
 npm run dev:electron
 
-# Optional: force legacy dual-process mode (engine + separate goclaw process)
+# Optional: force single-engine mode in development
+npx cross-env AIST_SINGLE_ENGINE=1 npm run dev:electron
+
+# Optional: force dual-process mode explicitly
 npx cross-env AIST_SINGLE_ENGINE=0 npm run dev:electron
 
 # Run tests
@@ -208,9 +211,72 @@ npm run preview
 
 ---
 
+## 🧭 Current Runtime Notes (April 2026)
+
+### Runtime topology
+
+| Mode | Command | What runs |
+|---|---|---|
+| **Web UI only** | `npm run dev` | Vite + React UI only (no local engine process) |
+| **Desktop dev** | `npm run dev:electron` | Vite + Electron main process + Go engine backend |
+| **Desktop packaged** | `npm run build:electron` | Production Electron app with bundled backend binaries |
+
+### Execution behavior in desktop mode
+
+- The frontend talks to the local Go backend at `http://localhost:{enginePort}/v1`.
+- In development, Electron defaults to **dual-process** (`AIST_SINGLE_ENGINE=0`): engine process + standalone Aistclaw process.
+- In packaged builds, Electron defaults to **single-engine supervision** (`AIST_SINGLE_ENGINE=1`).
+- Backend chooses a free port starting from `1234`, then emits it to Electron via stdout (`engine:port`).
+
+### Local data persistence (desktop)
+
+Desktop mode persists app data in local JSON files under `data/` (or `AI_SERVER_DATA_DIR` if set), including:
+
+- `users.json`
+- `auth_sessions.json`
+- `providers.json`
+- `provider_model_prefs.json`
+- `mcp_servers.json`
+- `documents.json`
+
+### Local API surface (desktop)
+
+Major route groups exposed by the Go backend:
+
+- `GET /v1/system/*` for status/hardware/backends
+- `GET|POST /v1/models/*` for model lifecycle
+- `POST /v1/chat/completions` for local OpenAI-compatible chat
+- `GET|POST|PATCH|DELETE /v1/providers*` for cloud-provider management
+- `POST /v1/providers/*` for provider chat/image/audio proxying
+- `POST /v1/tools/execute` for built-in tools
+- `GET|POST /v1/mcp/*` for MCP server storage and proxy
+- `POST /v1/agent/*` for backend agent runs
+
+### Built-in tool IDs (current)
+
+Canonical tool namespaces used by the runtime:
+
+- `web.search`
+- `web.fetch`
+- `kb.search`
+- `kb.store`
+- `kb.list`
+
+Legacy IDs like `web-search`, `url-fetch`, and `knowledge-base` are still accepted through alias mapping.
+
+### Dev prerequisites for `npm run dev:electron`
+
+- **Go toolchain** must be available (predev builds backend binaries).
+- If `AISTCLAW_POSTGRES_DSN` points to `localhost:5433`, Docker Desktop is used to auto-start/stop the `aistclaw-pgvector` container.
+- If Docker is unavailable, pgvector auto-start is skipped and startup depends on your DSN configuration.
+
+---
+
 ## 🗄️ Supabase Setup
 
-This project requires the following Supabase resources:
+Supabase is supported for cloud workflows and edge-function integrations, but desktop mode can run with local backend storage only.
+
+For Supabase-enabled deployments, configure the following resources:
 
 ### Database Tables
 
@@ -244,7 +310,7 @@ supabase functions deploy tool-execute
 
 ## 🔒 Security Notes
 
-- **API keys** are XOR-encrypted before storing in the database (see `encryptApiKey` in `SettingsPage.tsx`)
+- **Desktop mode stores provider keys in local backend data files** (`data/providers.json`) and serves them through local authenticated APIs
 - **Supabase RLS** (Row Level Security) should be enabled on all tables to ensure users can only access their own data
 - **Local tool execution** (JS Sandbox, Calculator) runs in the browser — treat with appropriate caution
 - **Edge Functions** handle external network calls (web search, URL fetch, MCP proxy) to avoid CORS issues

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocation, useNavigate } from "react-router-dom";
 import IconSidebar from "@/components/IconSidebar";
 import ChatPage from "@/pages/ChatPage";
 import DiscoverPage from "@/pages/DiscoverPage";
@@ -9,8 +10,8 @@ import SettingsPage from "@/pages/SettingsPage";
 import ApiGatewayPage from "@/pages/ApiGatewayPage";
 import VoicePage from "@/pages/VoicePage";
 import MediaPage from "@/pages/MediaPage";
-import ClawUiPage from "./ClawUiPage";
 import AuthPage from "@/pages/AuthPage";
+import NotFound from "@/pages/NotFound";
 import ModelConfigPanel from "@/components/ModelConfigPanel";
 import KeyboardShortcuts from "@/components/KeyboardShortcuts";
 import DownloadManager from "@/components/DownloadManager";
@@ -18,6 +19,7 @@ import WindowTitleBar from "@/components/WindowTitleBar";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocalEngine } from "@/hooks/useLocalEngine";
 import { useDownloadManager } from "@/hooks/useDownloadManager";
+import { getAppPagePath, getStudioPageFromPath } from "@/lib/app-routes";
 import { listBackendProviders } from "@/lib/api";
 import { syncProviderModelPrefsFromBackend } from "@/lib/providerModelPrefs";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -63,12 +65,13 @@ type SelectedModelConfigContext = {
 };
 
 const Index = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { user, loading: authLoading, checkSession } = useAuth();
   const { status: engineStatus, load, unload, loading: engineLoading } = useLocalEngine(5000);
   const { downloads, activeCount, startDownload, cancelDownload, removeDownload, retryDownload, clearCompleted } = useDownloadManager();
   const [showSettings, setShowSettings] = useState(false);
   const [showDownloads, setShowDownloads] = useState(false);
-  const [currentPage, setCurrentPage] = useState<Page>("chat");
   const [tools, setTools] = useState<ToolItem[]>(INITIAL_TOOLS);
   const [providers, setProviders] = useState<ApiProvider[]>(() => {
     const saved = localStorage.getItem("ai-server-providers");
@@ -106,6 +109,7 @@ const Index = () => {
       return "dark";
     }
   });
+  const currentPage = getStudioPageFromPath(location.pathname);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -163,12 +167,25 @@ const Index = () => {
 
   const handleChatNav = useCallback(() => {
     if (currentPage !== "chat") {
-      setCurrentPage("chat");
+      navigate(getAppPagePath("chat"));
       setChatSessionsOpen(true);
     } else {
       setChatSessionsOpen((o) => !o);
     }
-  }, [currentPage]);
+  }, [currentPage, navigate]);
+
+  const handlePageChange = useCallback((page: Page) => {
+    if (page === "settings") {
+      setShowSettings(true);
+      return;
+    }
+
+    if (page === "chat") {
+      setChatSessionsOpen(true);
+    }
+
+    navigate(getAppPagePath(page));
+  }, [navigate]);
 
   useEffect(() => {
     localStorage.setItem("ai-server-providers", JSON.stringify(providers));
@@ -216,7 +233,7 @@ const Index = () => {
   const handleShortcutAction = useCallback((action: string) => {
     switch (action) {
       case "new-chat":
-        setCurrentPage("chat");
+        navigate(getAppPagePath("chat"));
         setChatSessionsOpen(true);
         setNewChatTrigger(prev => prev + 1);
         break;
@@ -224,20 +241,20 @@ const Index = () => {
         setShowSettings(true);
         break;
       case "chat":
-        setCurrentPage("chat");
+        navigate(getAppPagePath("chat"));
         setChatSessionsOpen(true);
         break;
       case "server":
-        setCurrentPage("server");
+        navigate(getAppPagePath("server"));
         break;
       case "models":
-        setCurrentPage("models");
+        navigate(getAppPagePath("models"));
         break;
       case "search":
-        setCurrentPage("search");
+        navigate(getAppPagePath("search"));
         break;
     }
-  }, []);
+  }, [navigate]);
 
   const { appearance, advanced } = useSettingsStore();
   const navPos = appearance.navBarPosition; // "left" | "right" | "bottom"
@@ -248,6 +265,10 @@ const Index = () => {
         <div className="text-xs text-muted-foreground animate-pulse">Loading...</div>
       </div>
     );
+  }
+
+  if (!currentPage) {
+    return <NotFound />;
   }
 
   return (
@@ -267,7 +288,7 @@ const Index = () => {
             {navPos !== "right" && navPos !== "bottom" && (
               <IconSidebar
                 currentPage={currentPage}
-                onPageChange={setCurrentPage}
+                onPageChange={handlePageChange}
                 userRole={userRole}
                 onOpenSettings={() => setShowSettings(true)}
                 onOpenDownloads={() => setShowDownloads(true)}
@@ -328,7 +349,6 @@ const Index = () => {
               {currentPage === "server" && <ServerPage />}
               {currentPage === "api" && <ApiGatewayPage />}
               {currentPage === "voice" && <VoicePage mode={executionMode} providers={providers} />}
-              {currentPage === "clawui" && <ClawUiPage />}
               {currentPage === "media" && <MediaPage providers={providers} />}
 
               <AnimatePresence>
@@ -383,7 +403,7 @@ const Index = () => {
             {(navPos === "right" || navPos === "bottom") && (
               <IconSidebar
                 currentPage={currentPage}
-                onPageChange={setCurrentPage}
+                onPageChange={handlePageChange}
                 userRole={userRole}
                 onOpenSettings={() => setShowSettings(true)}
                 onOpenDownloads={() => setShowDownloads(true)}

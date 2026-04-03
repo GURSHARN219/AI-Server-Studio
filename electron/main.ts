@@ -61,34 +61,54 @@ loadElectronEnvFromFiles();
 
 const isDev = !app.isPackaged;
 // In development, default to dual-process mode unless explicitly enabled.
-// This avoids coupling desktop startup to GoClaw/PostgreSQL availability.
+// This avoids coupling desktop startup to Aistclaw/PostgreSQL availability.
 const singleEngineMode = process.env.AIST_SINGLE_ENGINE
   ? process.env.AIST_SINGLE_ENGINE !== "0"
   : !isDev;
-const allowStandaloneGoClawFallback = process.env.AIST_ALLOW_STANDALONE_GOCLAW_FALLBACK === "1";
+const allowStandaloneAistclawFallback = process.env.AIST_ALLOW_STANDALONE_AISTCLAW_FALLBACK === "1";
 
 let engineProcess: ChildProcess | null = null;
-let goclawProcess: ChildProcess | null = null;
+let aistclawProcess: ChildProcess | null = null;
 let mainWindow: BrowserWindow | null = null;
 let engineRestartDelay = 1000;
-let goclawRestartDelay = 1000;
+let aistclawRestartDelay = 1000;
 let engineStopping = false;
-let goclawStopping = false;
-let goclawStartInProgress = false;
-let goclawRestartTimer: NodeJS.Timeout | null = null;
+let aistclawStopping = false;
+let aistclawStartInProgress = false;
+let aistclawRestartTimer: NodeJS.Timeout | null = null;
 let lastEnginePort: number | null = null; // cache so we can re-send after window load
-let lastGoClawPort: number | null = null;
-let goclawPortReportedByEngine = false;
+let lastAistclawPort: number | null = null;
+let aistclawPortReportedByEngine = false;
 let singleEngineFallbackTimer: NodeJS.Timeout | null = null;
-let goclawConfigErrorLogged = false;
-let goclawDbErrorLogged = false;
+let aistclawConfigErrorLogged = false;
+let aistclawDbErrorLogged = false;
 let devEngineSourceLaunchFailed = false;
 let engineEmbeddedFlagSupported: boolean | null = null;
 let windowControlHandlersRegistered = false;
 // Desktop always uses the embedded runtime; CLI `aist --server` owns llama-server mode.
 const preferEmbeddedEngine = true;
 
-const GOCLAW_DEFAULT_PORT = 18790;
+const AISTCLAW_DEFAULT_PORT = 18790;
+
+function resolveWindowIconPath() {
+  const candidates = isDev
+    ? [
+        path.join(__dirname, "../public/favicon.ico"),
+        path.join(__dirname, "../public/logo.png"),
+      ]
+    : [
+        path.join(__dirname, "../dist/favicon.ico"),
+        path.join(__dirname, "../dist/logo.png"),
+      ];
+
+  for (const iconPath of candidates) {
+    if (fs.existsSync(iconPath)) {
+      return iconPath;
+    }
+  }
+
+  return undefined;
+}
 
 function isPortInUse(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -114,8 +134,8 @@ function isPortInUse(port: number): Promise<boolean> {
   });
 }
 
-function hasGoClawRequiredEnv() {
-  return Boolean(process.env.GOCLAW_POSTGRES_DSN && process.env.GOCLAW_POSTGRES_DSN.trim().length > 0);
+function hasAistclawRequiredEnv() {
+  return Boolean(process.env.AISTCLAW_POSTGRES_DSN && process.env.AISTCLAW_POSTGRES_DSN.trim().length > 0);
 }
 
 function supportsEmbeddedFlag(enginePath: string): boolean {
@@ -204,15 +224,15 @@ function startEngine() {
             engineRestartDelay = 1000;
             mainWindow?.webContents.send("engine:port", msg.port);
             console.log(`[Electron] Go engine running on port ${msg.port}`);
-          } else if (msg?.type === "goclaw:port") {
-            lastGoClawPort = msg.port;
-            goclawPortReportedByEngine = true;
+          } else if (msg?.type === "aistclaw:port") {
+            lastAistclawPort = msg.port;
+            aistclawPortReportedByEngine = true;
             if (singleEngineFallbackTimer) {
               clearTimeout(singleEngineFallbackTimer);
               singleEngineFallbackTimer = null;
             }
-            mainWindow?.webContents.send("goclaw:port", msg.port);
-            console.log(`[Electron] GoClaw available on port ${msg.port} (via engine supervisor)`);
+            mainWindow?.webContents.send("aistclaw:port", msg.port);
+            console.log(`[Electron] Aistclaw available on port ${msg.port} (via engine supervisor)`);
           }
         } catch { /* not JSON, skip */ }
       }
@@ -235,7 +255,7 @@ function startEngine() {
   // Watchdog: restart engine on unexpected exit
   engineProcess.on("exit", (code, signal) => {
     console.log(`[Electron] Engine exited (code=${code}, signal=${signal})`);
-    goclawPortReportedByEngine = false;
+    aistclawPortReportedByEngine = false;
     if (singleEngineFallbackTimer) {
       clearTimeout(singleEngineFallbackTimer);
       singleEngineFallbackTimer = null;
@@ -249,42 +269,45 @@ function startEngine() {
   });
 }
 
-async function startGoClaw() {
-  if (goclawStartInProgress) {
+async function startAistclaw() {
+  if (aistclawStartInProgress) {
     return;
   }
 
-  if (goclawProcess && goclawProcess.exitCode === null) {
+  if (aistclawProcess && aistclawProcess.exitCode === null) {
     return;
   }
 
-  goclawStartInProgress = true;
+  aistclawStartInProgress = true;
 
-  if (await isPortInUse(GOCLAW_DEFAULT_PORT)) {
+  if (await isPortInUse(AISTCLAW_DEFAULT_PORT)) {
     // Another process (often the engine supervisor) already owns the port.
-    lastGoClawPort = GOCLAW_DEFAULT_PORT;
-    mainWindow?.webContents.send("goclaw:port", GOCLAW_DEFAULT_PORT);
-    console.log(`[Electron] GoClaw port ${GOCLAW_DEFAULT_PORT} already in use; reusing existing instance.`);
-    goclawStartInProgress = false;
+    lastAistclawPort = AISTCLAW_DEFAULT_PORT;
+    mainWindow?.webContents.send("aistclaw:port", AISTCLAW_DEFAULT_PORT);
+    console.log(`[Electron] Aistclaw port ${AISTCLAW_DEFAULT_PORT} already in use; reusing existing instance.`);
+    aistclawStartInProgress = false;
     return;
   }
 
-  if (!hasGoClawRequiredEnv()) {
-    if (!goclawConfigErrorLogged) {
-      console.error("[Electron] GOCLAW_POSTGRES_DSN is missing. Skipping GoClaw startup until it is configured.");
-      console.error("[Electron] Set GOCLAW_POSTGRES_DSN in your shell or .env.local, then restart npm run dev:electron.");
-      goclawConfigErrorLogged = true;
+  if (!hasAistclawRequiredEnv()) {
+    if (!aistclawConfigErrorLogged) {
+      console.error("[Electron] AISTCLAW_POSTGRES_DSN is missing. Skipping Aistclaw startup until it is configured.");
+      console.error("[Electron] Set AISTCLAW_POSTGRES_DSN in your shell or .env.local, then restart npm run dev:electron.");
+      aistclawConfigErrorLogged = true;
     }
-    goclawStartInProgress = false;
+    aistclawStartInProgress = false;
     return;
   }
 
-  const goclawBinary = isDev
-    ? path.join(__dirname, "../src/backend/goclaw.exe")
-    : path.join(process.resourcesPath, "goclaw.exe");
+  const aistclawSourceDir = path.join(__dirname, "../src/backend/aistclaw");
+  const devAistclawBinary = path.join(__dirname, "../extensions/backend/aistclaw.exe");
+  const useDevAistclawBinary = isDev && fs.existsSync(devAistclawBinary);
+  const aistclawBinary = isDev
+    ? (useDevAistclawBinary ? devAistclawBinary : path.join(__dirname, "../src/backend/aistclaw.exe"))
+    : path.join(process.resourcesPath, "aistclaw.exe");
 
   const cwd = isDev
-    ? path.join(__dirname, "../src/backend/goclaw")
+    ? (useDevAistclawBinary ? path.dirname(devAistclawBinary) : aistclawSourceDir)
     : process.resourcesPath;
 
   const repoRoot = path.resolve(__dirname, "..");
@@ -292,35 +315,44 @@ async function startGoClaw() {
     ? process.env.AI_SERVER_DATA_DIR
     : (isDev ? path.join(repoRoot, "data") : path.join(app.getPath("userData"), "data"));
 
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
-    GOCLAW_PORT: String(GOCLAW_DEFAULT_PORT),
-    // Enable GoClaw to import the Studio engine's providers/model defaults on startup.
+    AISTCLAW_PORT: String(AISTCLAW_DEFAULT_PORT),
+    // Enable Aistclaw to import the Studio engine's providers/model defaults on startup.
     // This prevents "provider not found" errors when embedded.
     AIST_IMPORT_ENGINE_CONFIG: "1",
     AIST_ENGINE_DATA_DIR: engineDataDir,
   };
 
+  if (isDev) {
+    // Prefer the shared backend migrations folder when present.
+    const sharedMigrationsDir = path.join(repoRoot, "src/backend/migrations");
+    const aistclawMigrationsDir = path.join(aistclawSourceDir, "migrations");
+    env.AISTCLAW_MIGRATIONS_DIR = fs.existsSync(sharedMigrationsDir)
+      ? sharedMigrationsDir
+      : aistclawMigrationsDir;
+  }
+
   const launch = () => {
-    if (isDev) {
+    if (isDev && !useDevAistclawBinary) {
       return spawn("go", ["run", "."], {
         env,
         stdio: ["pipe", "pipe", "pipe"],
         cwd,
       });
     }
-    return spawn(goclawBinary, [], {
+    return spawn(aistclawBinary, [], {
       env,
       stdio: ["pipe", "pipe", "pipe"],
       cwd,
     });
   };
 
-  console.log(`[Electron] Starting GoClaw backend on ${GOCLAW_DEFAULT_PORT}`);
+  console.log(`[Electron] Starting Aistclaw backend on ${AISTCLAW_DEFAULT_PORT}`);
 
-  let goclawDbConnectivityFailed = false;
+  let aistclawDbConnectivityFailed = false;
 
-  const trackGoClawOutput = (text: string) => {
+  const trackAistclawOutput = (text: string) => {
     // If DB connectivity fails during boot, restarting the process repeatedly is noisy
     // and does not recover until PostgreSQL becomes available.
     if (
@@ -329,77 +361,79 @@ async function startGoClaw() {
       text.includes("connectex") ||
       text.includes("failed to connect to `user=")
     ) {
-      goclawDbConnectivityFailed = true;
+      aistclawDbConnectivityFailed = true;
     }
   };
 
   try {
-    goclawProcess = launch();
+    aistclawProcess = launch();
   } catch (err) {
-    console.error("[Electron] Failed to start GoClaw process:", err);
-    goclawStartInProgress = false;
+    console.error("[Electron] Failed to start Aistclaw process:", err);
+    aistclawStartInProgress = false;
     return;
   }
 
-  const proc = goclawProcess;
+  const proc = aistclawProcess;
 
   proc.stdout?.on("data", (data: Buffer) => {
     const text = data.toString();
-    trackGoClawOutput(text);
-    process.stdout.write(`[goclaw] ${text}`);
+    trackAistclawOutput(text);
+    process.stdout.write(`[aistclaw] ${text}`);
   });
 
   proc.stderr?.on("data", (data: Buffer) => {
     const text = data.toString();
-    trackGoClawOutput(text);
-    process.stderr.write(`[goclaw] ${text}`);
+    trackAistclawOutput(text);
+    process.stderr.write(`[aistclaw] ${text}`);
   });
 
   proc.on("spawn", () => {
-    goclawStartInProgress = false;
-    lastGoClawPort = GOCLAW_DEFAULT_PORT;
-    goclawRestartDelay = 1000;
-    mainWindow?.webContents.send("goclaw:port", GOCLAW_DEFAULT_PORT);
+    aistclawStartInProgress = false;
+    lastAistclawPort = AISTCLAW_DEFAULT_PORT;
+    aistclawRestartDelay = 1000;
+    mainWindow?.webContents.send("aistclaw:port", AISTCLAW_DEFAULT_PORT);
   });
 
   proc.on("error", (err) => {
-    goclawStartInProgress = false;
-    console.error("[Electron] GoClaw error:", err);
+    aistclawStartInProgress = false;
+    console.error("[Electron] Aistclaw error:", err);
   });
 
   proc.on("exit", (code, signal) => {
-    goclawStartInProgress = false;
-    if (goclawProcess !== proc) {
+    aistclawStartInProgress = false;
+    if (aistclawProcess !== proc) {
       return;
     }
-    goclawProcess = null;
-    console.log(`[Electron] GoClaw exited (code=${code}, signal=${signal})`);
-    if (goclawStopping) return;
-    if (goclawDbConnectivityFailed) {
-      if (!goclawDbErrorLogged) {
-        console.error("[Electron] GoClaw could not connect to PostgreSQL. Restart loop paused.");
-        console.error("[Electron] Start PostgreSQL and ensure GOCLAW_POSTGRES_DSN is correct, then restart npm run dev:electron.");
-        goclawDbErrorLogged = true;
+    aistclawProcess = null;
+    console.log(`[Electron] Aistclaw exited (code=${code}, signal=${signal})`);
+    if (aistclawStopping) return;
+    if (aistclawDbConnectivityFailed) {
+      if (!aistclawDbErrorLogged) {
+        console.error("[Electron] Aistclaw could not connect to PostgreSQL. Restart loop paused.");
+        console.error("[Electron] Start PostgreSQL and ensure AISTCLAW_POSTGRES_DSN is correct, then restart npm run dev:electron.");
+        aistclawDbErrorLogged = true;
       }
       return;
     }
-    console.log(`[Electron] Restarting GoClaw in ${goclawRestartDelay}ms...`);
-    if (goclawRestartTimer) {
-      clearTimeout(goclawRestartTimer);
+    console.log(`[Electron] Restarting Aistclaw in ${aistclawRestartDelay}ms...`);
+    if (aistclawRestartTimer) {
+      clearTimeout(aistclawRestartTimer);
     }
-    goclawRestartTimer = setTimeout(() => {
-      goclawRestartTimer = null;
-      goclawRestartDelay = Math.min(goclawRestartDelay * 2, 30_000);
-      void startGoClaw();
-    }, goclawRestartDelay);
+    aistclawRestartTimer = setTimeout(() => {
+      aistclawRestartTimer = null;
+      aistclawRestartDelay = Math.min(aistclawRestartDelay * 2, 30_000);
+      void startAistclaw();
+    }, aistclawRestartDelay);
   });
 }
 
 function createWindow() {
+  const icon = resolveWindowIconPath();
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
     frame: false,
+    icon,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -418,8 +452,8 @@ function createWindow() {
     if (lastEnginePort !== null) {
       win.webContents.send("engine:port", lastEnginePort);
     }
-    if (lastGoClawPort !== null) {
-      win.webContents.send("goclaw:port", lastGoClawPort);
+    if (lastAistclawPort !== null) {
+      win.webContents.send("aistclaw:port", lastAistclawPort);
     }
   });
 
@@ -500,28 +534,28 @@ app.whenReady().then(() => {
 
   if (!singleEngineMode) {
     // In dual-process mode, give the engine a brief moment to report whether it
-    // has already started GoClaw before launching a standalone GoClaw process.
+    // has already started Aistclaw before launching a standalone Aistclaw process.
     setTimeout(() => {
-      if (!goclawPortReportedByEngine && !goclawStopping) {
-        void startGoClaw();
+      if (!aistclawPortReportedByEngine && !aistclawStopping) {
+        void startAistclaw();
       }
     }, 1500);
   } else {
-    if (!allowStandaloneGoClawFallback) {
-      console.log("[Electron] Standalone GoClaw fallback is disabled in single-engine mode.");
+    if (!allowStandaloneAistclawFallback) {
+      console.log("[Electron] Standalone Aistclaw fallback is disabled in single-engine mode.");
     }
-    // If single-engine mode fails to report GoClaw readiness, fallback to direct GoClaw process.
+    // If single-engine mode fails to report Aistclaw readiness, fallback to direct Aistclaw process.
     singleEngineFallbackTimer = setTimeout(() => {
       const engineIsRunning = engineProcess !== null && engineProcess.exitCode === null;
-      if (allowStandaloneGoClawFallback && !goclawPortReportedByEngine && !goclawStopping && engineIsRunning) {
-        if (hasGoClawRequiredEnv()) {
-          console.warn("[Electron] No GoClaw port from engine supervisor; falling back to standalone GoClaw process");
-          void startGoClaw();
+      if (allowStandaloneAistclawFallback && !aistclawPortReportedByEngine && !aistclawStopping && engineIsRunning) {
+        if (hasAistclawRequiredEnv()) {
+          console.warn("[Electron] No Aistclaw port from engine supervisor; falling back to standalone Aistclaw process");
+          void startAistclaw();
         } else {
-          if (!goclawConfigErrorLogged) {
-            console.error("[Electron] No GoClaw port from engine supervisor and GOCLAW_POSTGRES_DSN is missing.");
-            console.error("[Electron] Configure GOCLAW_POSTGRES_DSN to enable GoClaw features.");
-            goclawConfigErrorLogged = true;
+          if (!aistclawConfigErrorLogged) {
+            console.error("[Electron] No Aistclaw port from engine supervisor and AISTCLAW_POSTGRES_DSN is missing.");
+            console.error("[Electron] Configure AISTCLAW_POSTGRES_DSN to enable Aistclaw features.");
+            aistclawConfigErrorLogged = true;
           }
         }
       }
@@ -537,16 +571,16 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   engineStopping = true;
-  goclawStopping = true;
-  if (goclawRestartTimer) {
-    clearTimeout(goclawRestartTimer);
-    goclawRestartTimer = null;
+  aistclawStopping = true;
+  if (aistclawRestartTimer) {
+    clearTimeout(aistclawRestartTimer);
+    aistclawRestartTimer = null;
   }
   if (singleEngineFallbackTimer) {
     clearTimeout(singleEngineFallbackTimer);
     singleEngineFallbackTimer = null;
   }
   engineProcess?.kill();
-  goclawProcess?.kill();
+  aistclawProcess?.kill();
   if (process.platform !== "darwin") app.quit();
 });

@@ -209,6 +209,87 @@
     background: transparent;
   }
 
+  .aistclaw-host * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted) / 0.5) transparent;
+  }
+  .aistclaw-host *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .aistclaw-host *::-webkit-scrollbar-track {
+    background: hsl(var(--background) / 0.12);
+    border-radius: 999px;
+  }
+  .aistclaw-host *::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted) / 0.52);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+  }
+  .aistclaw-host *::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.55);
+  }
+  .aistclaw-host *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .aistclaw-host .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted) / 0.45) transparent;
+  }
+  .aistclaw-host .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .aistclaw-host .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .aistclaw-host .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted) / 0.42);
+    border-radius: 999px;
+  }
+  .aistclaw-host .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted) / 0.62);
+  }
+
+  .aistclaw-host .sidebar-scroll-1px {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .aistclaw-host .sidebar-scroll-1px::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  .aistclaw-host .scrollbar-styled,
+  .aistclaw-host .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted) / 0.5) transparent;
+  }
+  .aistclaw-host .scrollbar-styled::-webkit-scrollbar,
+  .aistclaw-host .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .aistclaw-host .scrollbar-styled::-webkit-scrollbar-track,
+  .aistclaw-host .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--background) / 0.12);
+    border-radius: 999px;
+  }
+  .aistclaw-host .scrollbar-styled::-webkit-scrollbar-thumb,
+  .aistclaw-host .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted) / 0.52);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+  }
+  .aistclaw-host .scrollbar-styled::-webkit-scrollbar-thumb:hover,
+  .aistclaw-host .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.55);
+  }
+
   .region-drag {
     -webkit-app-region: drag;
   }

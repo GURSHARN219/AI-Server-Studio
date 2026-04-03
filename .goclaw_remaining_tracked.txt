@@ -1,0 +1,18 @@
+﻿src/backend/main.go.101737578683159758:33:	defaultAistclawPort = 18790
+src/backend/main.go.101737578683159758:42:	singleEngine := flag.Bool("single-engine", os.Getenv("AIST_SINGLE_ENGINE") != "0", "Run Aistclaw under this backend process supervisor")
+src/backend/main.go.101737578683159758:125:	var aistclawProcess *exec.Cmd
+src/backend/main.go.101737578683159758:127:		aistclawProcess = startAistclawSupervisor(defaultAistclawPort)
+src/backend/main.go.101737578683159758:128:		if aistclawProcess != nil {
+src/backend/main.go.101737578683159758:130:				"type": "aistclaw:port",
+src/backend/main.go.101737578683159758:131:				"port": defaultAistclawPort,
+src/backend/main.go.101737578683159758:143:		if aistclawProcess != nil && aistclawProcess.Process != nil {
+src/backend/main.go.101737578683159758:144:			_ = aistclawProcess.Process.Kill()
+src/backend/main.go.101737578683159758:258:func startAistclawSupervisor(port int) *exec.Cmd {
+src/backend/main.go.101737578683159758:261:	env := append(os.Environ(), fmt.Sprintf("AISTCLAW_PORT=%d", port))
+src/backend/main.go.101737578683159758:263:	devModuleDir := filepath.Join(exeDir, "aistclaw")
+src/backend/main.go.101737578683159758:271:			log.Printf("[aist] Failed to start Aistclaw (dev): %v", err)
+src/backend/main.go.101737578683159758:274:		log.Printf("[aist] Aistclaw supervisor started (dev) on port %d", port)
+src/backend/main.go.101737578683159758:278:	binaryPath := filepath.Join(exeDir, "aistclaw.exe")
+src/backend/main.go.101737578683159758:280:		log.Printf("[aist] Aistclaw binary not found at %s", binaryPath)
+src/backend/main.go.101737578683159758:290:		log.Printf("[aist] Failed to start Aistclaw (prod): %v", err)
+src/backend/main.go.101737578683159758:293:	log.Printf("[aist] Aistclaw supervisor started (prod) on port %d", port)

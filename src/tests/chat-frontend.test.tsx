@@ -207,51 +207,49 @@ describe("MessageBubble — tool calls", () => {
     { id: "tc2", name: "kb.search",  args: '{"query":"docs"}', status: "running" },
   ];
 
-  it("shows collapsed tool call badge with count", () => {
+  it("shows individual tool cards", () => {
     const msg = makeMsg({ role: "assistant", content: "Here", toolCalls });
     render(<MessageBubble message={msg} isGenerating={true} formatTime={fmt} onDelete={noop} onRegenerate={noop} />);
-    expect(screen.getByText(/2 tool calls/)).toBeInTheDocument();
+    expect(screen.getByText("web.search")).toBeInTheDocument();
+    expect(screen.getByText("kb.search")).toBeInTheDocument();
   });
 
-  it("shows spinner on badge when a tool is running", () => {
+  it("shows spinner when a tool is running", () => {
     const msg = makeMsg({ role: "assistant", content: "Here", toolCalls });
     const { container } = render(<MessageBubble message={msg} isGenerating={true} formatTime={fmt} onDelete={noop} onRegenerate={noop} />);
     expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
-  it("shows checkmark on badge when all tools done", () => {
+  it("shows done tool card without spinner when all tools done", () => {
     const doneCalls: Message["toolCalls"] = [
       { id: "tc1", name: "web.search", args: "{}", status: "done", result: "ok", duration: 50 },
     ];
     const msg = makeMsg({ role: "assistant", content: "Done", toolCalls: doneCalls });
-    render(<MessageBubble message={msg} isGenerating={false} formatTime={fmt} onDelete={noop} onRegenerate={noop} />);
-    // badge shows check — no spinner
     const { container } = render(<MessageBubble message={msg} isGenerating={false} formatTime={fmt} onDelete={noop} onRegenerate={noop} />);
+    expect(screen.getByText("web.search")).toBeInTheDocument();
     expect(container.querySelector(".animate-spin")).not.toBeInTheDocument();
   });
 
-  it("expands tool calls panel on click and shows tool names", () => {
+  it("expands a tool card on click and shows content", () => {
     const msg = makeMsg({ role: "assistant", content: "Here", toolCalls });
     render(<MessageBubble message={msg} isGenerating={false} formatTime={fmt} onDelete={noop} onRegenerate={noop} />);
-    const badge = screen.getByText(/2 tool calls/).closest("button")!;
-    fireEvent.click(badge);
-    expect(screen.getByText("web.search")).toBeInTheDocument();
-    expect(screen.getByText("kb.search")).toBeInTheDocument();
+    const row = screen.getByText("web.search").closest("button")!;
+    fireEvent.click(row);
+    expect(screen.getByText("Result:")).toBeInTheDocument();
   });
 
   it("shows tool result and duration when expanded", () => {
     const msg = makeMsg({ role: "assistant", content: "Here", toolCalls });
     render(<MessageBubble message={msg} isGenerating={false} formatTime={fmt} onDelete={noop} onRegenerate={noop} />);
-    fireEvent.click(screen.getByText(/2 tool calls/).closest("button")!);
-    expect(screen.getByText("Result A")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("web.search").closest("button")!);
+    expect(screen.getByText("Result:")).toBeInTheDocument();
     expect(screen.getByText("120ms")).toBeInTheDocument();
   });
 
-  it("shows pretty-printed JSON args when expanded", () => {
+  it("shows running indicator for running tool", () => {
     const msg = makeMsg({ role: "assistant", content: "Here", toolCalls });
-    render(<MessageBubble message={msg} isGenerating={false} formatTime={fmt} onDelete={noop} onRegenerate={noop} />);
-    fireEvent.click(screen.getByText(/2 tool calls/).closest("button")!);
-    expect(screen.getAllByText(/"query"/).length).toBeGreaterThanOrEqual(1);
+    render(<MessageBubble message={msg} isGenerating={true} formatTime={fmt} onDelete={noop} onRegenerate={noop} />);
+    expect(screen.getAllByText(/running/i).length).toBeGreaterThan(0);
   });
 });
 
@@ -444,8 +442,8 @@ describe("Chat input/output logic", () => {
     ];
     const msg = makeMsg({ role: "assistant", content: "Here", toolCalls });
     render(<MessageBubble message={msg} isGenerating={false} formatTime={fmt} onDelete={noop} onRegenerate={noop} />);
-    expect(screen.getByText(/3 tool calls/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/3 tool calls/).closest("button")!);
+    expect(screen.getByText(/Used\s*3\s*tools/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Used\s*3\s*tools/).closest("button")!);
     expect(screen.getByText("web.search")).toBeInTheDocument();
     expect(screen.getByText("kb.search")).toBeInTheDocument();
     expect(screen.getByText("web.fetch")).toBeInTheDocument();

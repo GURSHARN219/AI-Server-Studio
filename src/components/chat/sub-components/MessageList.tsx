@@ -1,7 +1,7 @@
 import React from "react";
 import MessageBubble from "@/components/chat/MessageBubble";
 import type { Message, ModelDef } from "@/components/chat/types";
-import type { ApiProvider } from "@/pages/Index";
+import type { ApiProvider } from "@/types";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 interface MessageListProps {

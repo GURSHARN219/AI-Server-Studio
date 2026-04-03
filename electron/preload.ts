@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld("electron", {
   onEnginePort: (cb: (port: number) => void) => {
     ipcRenderer.on("engine:port", (_event: any, port: number) => cb(port));
   },
-  onGoClawPort: (cb: (port: number) => void) => {
-    ipcRenderer.on("goclaw:port", (_event: any, port: number) => cb(port));
+  onAistclawPort: (cb: (port: number) => void) => {
+    ipcRenderer.on("aistclaw:port", (_event: any, port: number) => cb(port));
   },
 });

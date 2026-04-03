@@ -218,6 +218,7 @@ type agentRunCreateReq struct {
 	ModelName     string               `json:"modelName"`
 	MaxSteps      int                  `json:"maxSteps"`
 	MaxIterations int                  `json:"maxIterations"`
+	ExecutionMode string               `json:"executionMode"`
 	Provider      *agentProviderConfig `json:"provider"`
 	Tools         []agentToolDef       `json:"tools"`
 }

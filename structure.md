@@ -389,28 +389,60 @@ ChatUI renders:
 
 ---
 
-## Known Bugs & Incomplete Functions
+## Current Validation Notes (April 2026)
 
-### 🔴 Critical
+### ✅ Confirmed current behavior
 
-1. **Orphaned provider functions in SettingsPage.tsx (lines 231-303)** — `fetchProviders`, `handleAddProvider`, `handleDeleteProvider`, `handleToggleProvider`, `startEdit`, `saveEdit` all reference `supabase`, `setDbProviders`, `setLoadingProviders`, `encryptApiKey`, `setVisibleKeys`, `setEditingProvider`, `setEditValues`, `setShowAddProvider`, `setNewProviderName/Url/Key/Type`, `DbProvider` — none of which are defined or imported. Will crash at runtime. **Fix**: delete lines 220-303 entirely (already extracted to `ProvidersTab.tsx`).
+1. **Settings page refactor is complete**
+    - `SettingsPage.tsx` is now a tab shell that renders extracted components (`ProfileTab`, `ProvidersTab`, `McpServersTab`, `ToolsTab`, `ApiTab`, `PathsTab`, `AdvancedTab`, `RuntimeTab`, `HardwareTab`, `AboutTab`).
+    - Provider CRUD logic is in `components/settings/ProvidersTab.tsx`, not in `SettingsPage.tsx`.
 
-2. **Duplicate Toggle/InputField in SettingsPage.tsx (lines 305-340+)** — Local `Toggle`, `InputField`, `SelectField`, `ToggleField` shadow the imported versions from `Primitives.tsx` (line 5). The local definitions will be used instead of the extracted primitives, defeating the Primitives extraction. **Fix**: delete the local definitions.
+2. **Execution mode model is now `offline | online`**
+    - Runtime mode toggles between `offline` and `online` using `ai-server-force-offline`.
+    - Earlier `offline | hybrid | full` behavior no longer reflects current source.
 
-### 🟡 Medium
+3. **Chat state is persisted through Zustand**
+    - `src/stores/chatStore.ts` now owns tabs, messages map, active tab, and generation state.
+    - Storage key: `ai-server-chat-storage`.
 
-3. **`rag-local` tool is a stub** (api.ts line 772) — Returns a hardcoded string: *"not indexed or available yet"*. Enabled by default (`enabled: true` in `loadToolConfigs`), which means the LLM will try to call it and get a useless response. **Fix**: set `enabled: false` by default, or implement local RAG.
+4. **Desktop auth/data path is local backend-first**
+    - `useAuth` uses backend session endpoints (`/v1/auth/*`), not direct Supabase auth in the desktop path.
+    - Data is persisted under `data/*.json` through backend routes.
 
-4. **`user_files` table missing from migrations** — `file-read` tool (api.ts line 700) queries `supabase.from("user_files")`, but no migration creates this table. Will return DB errors at runtime. **Fix**: add migration or disable by default.
+5. **Tool system canonical IDs are namespaced**
+    - Built-in tool dispatcher uses canonical IDs like `web.search`, `web.fetch`, `kb.search`, `kb.store`, `kb.list`.
+    - Legacy IDs are normalized through alias mapping for backward compatibility.
 
-5. **`documents` table `fts` column may not exist** — `rag-cloud` tool (line 738) uses `.textSearch("fts", ...)` which requires a generated tsvector column named `fts`. If migrations don't create this, the primary search path fails (falls back to `ilike`). **Verify**: check migration SQL for `fts` column.
+### ⚠️ Important implementation caveats
 
-6. **`PROVIDER_PRESETS` orphaned** (SettingsPage.tsx line 220) — Used only in orphaned `handleAddProvider` (line 257). Dead code after ProvidersTab extraction.
+1. **Sandbox aliases depend on MCP availability**
+    - `js-sandbox` and `python-sandbox` alias to `sandbox.run_js` and `sandbox.run_python`.
+    - If sandbox MCP tools are not discovered, these calls return unknown-tool behavior.
 
-### 🟢 Low
+2. **Desktop API key storage is local file-backed**
+    - Provider keys are stored in backend data files (`data/providers.json`) for desktop mode.
+    - Treat the local machine and data directory as sensitive.
 
-7. **`fetchWithRetry` retries with consumed body** — On 429 retry, the `RequestInit` object with `body: JSON.stringify(...)` is reused. The `body` is a string (not a ReadableStream), so it can be re-read. This is fine, but if `signal.aborted` between retries, the DOMException may not propagate correctly in all browsers — consider checking abort before each retry attempt (partially done at line 929).
+3. **Docs mentioning mandatory Supabase tables are deployment-specific**
+    - Supabase remains supported for cloud/edge flows.
+    - Core desktop flow can run against local backend persistence without Supabase.
 
-8. **System prompt references `rag` instead of `rag-cloud`/`rag-local`** — In useChatLogic.tsx line 391, the system prompt says *"When the user asks about stored knowledge/notes → call rag"* but the actual tool IDs are `rag-cloud` and `rag-local`. The LLM may try to call `rag` which will hit the `default` case and error.
+### Backend route groups (current source)
 
-9. **`handleRegenerate` clears message but sets input** — It removes the assistant message and puts the previous user message back in the input box, but doesn't auto-send. The user has to manually press Enter. This is UX, not a bug, but worth noting.
+- `models`: `/v1/models`, `/v1/models/available`, `/v1/models/current`, `/v1/models/load`, `/v1/models/unload`
+- `chat`: `/v1/chat/completions`, `/v1/chat/stop`
+- `providers`: `/v1/providers*` and `/v1/providers/{capability}`
+- `auth/profile`: `/v1/auth/*`, `/v1/profile*`
+- `knowledge`: `/v1/kb/documents`
+- `mcp`: `/v1/mcp/servers`, `/v1/mcp/proxy`
+- `agent`: `/v1/agent/runs`, `/v1/agent/chat`, `/v1/agent/runs/{id}*`
+- `system`: `/v1/system/status`, `/v1/system/hardware`, `/v1/system/usage`, `/v1/system/backends`
+- `tools`: `/v1/tools/execute`
+- `components`: `/v1/components*`
+- `tasks`: `/v1/tasks*`
+
+### Dev startup notes
+
+- `npm run dev:electron` runs predev hooks that build Go binaries.
+- Pgvector docker auto-start is conditional: it only triggers when DSN targets `localhost:5433`.
+- Runtime engine port is dynamic (starts at `1234`, increments if occupied).

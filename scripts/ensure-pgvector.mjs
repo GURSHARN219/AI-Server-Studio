@@ -2,7 +2,7 @@ import { execSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
-const CONTAINER_NAME = "goclaw-pgvector";
+const CONTAINER_NAME = "aistclaw-pgvector";
 const IMAGE = "pgvector/pgvector:pg18";
 const PORT_MAP = "5433:5432";
 
@@ -40,11 +40,16 @@ function parseEnvFile(filePath) {
 }
 
 function resolveDsn() {
-  if (process.env.GOCLAW_POSTGRES_DSN) return process.env.GOCLAW_POSTGRES_DSN;
+  if (process.env.AISTCLAW_POSTGRES_DSN) return process.env.AISTCLAW_POSTGRES_DSN;
+  if (process.env.AISTCLAW_POSTGRES_DSN) return process.env.AISTCLAW_POSTGRES_DSN;
   const cwd = process.cwd();
   const env = parseEnvFile(join(cwd, ".env"));
   const envLocal = parseEnvFile(join(cwd, ".env.local"));
-  return envLocal.GOCLAW_POSTGRES_DSN || env.GOCLAW_POSTGRES_DSN || "";
+  return envLocal.AISTCLAW_POSTGRES_DSN
+    || env.AISTCLAW_POSTGRES_DSN
+    || envLocal.AISTCLAW_POSTGRES_DSN
+    || env.AISTCLAW_POSTGRES_DSN
+    || "";
 }
 
 function ensureDocker() {
@@ -64,7 +69,7 @@ function ensureContainer() {
     console.log("[pgvector] Creating pgvector container...");
     run(
       `docker run -d --name ${CONTAINER_NAME} ` +
-        `-e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=goclaw ` +
+        `-e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=aistclaw ` +
         `-p ${PORT_MAP} ${IMAGE}`
     );
     return;
@@ -83,7 +88,7 @@ function sleep(ms) {
 
 async function waitReady() {
   for (let i = 0; i < 30; i += 1) {
-    const ready = tryRun(`docker exec ${CONTAINER_NAME} pg_isready -U postgres -d goclaw`);
+    const ready = tryRun(`docker exec ${CONTAINER_NAME} pg_isready -U postgres -d aistclaw`);
     if (ready.includes("accepting connections")) {
       console.log("[pgvector] Ready on localhost:5433");
       return true;
@@ -98,7 +103,7 @@ async function waitReady() {
 async function main() {
   const dsn = resolveDsn();
   if (!dsn) {
-    console.log("[pgvector] GOCLAW_POSTGRES_DSN not set; skipping auto-start.");
+    console.log("[pgvector] AISTCLAW_POSTGRES_DSN/AISTCLAW_POSTGRES_DSN not set; skipping auto-start.");
     return;
   }
 

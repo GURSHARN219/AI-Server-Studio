@@ -1,4 +1,4 @@
-import { ApiProvider } from "@/pages/Index";
+import type { ApiProvider } from "@/types";
 import { getEnginePort } from "@/lib/localEngine";
 
 function isBackendExpectedAtRuntime(): boolean {
@@ -396,7 +396,7 @@ export async function sendBackendAgenticChat(
   messages: ApiMessage[],
   modelName: string,
   tools: ToolDefinition[],
-  options?: { maxIterations?: number },
+  options?: { maxIterations?: number; executionMode?: ExecutionMode },
   signal?: AbortSignal,
 ): Promise<{ content: string; toolCalls: BackendAgenticToolCall[] }> {
   const url = `http://localhost:${getEnginePort()}/v1/agent/chat`;
@@ -414,6 +414,7 @@ export async function sendBackendAgenticChat(
       messages,
       tools,
       maxIterations: options?.maxIterations ?? 8,
+      executionMode: options?.executionMode ?? "online",
     }),
     signal,
   });

@@ -30,7 +30,7 @@ const (
 	defaultPort       = 1234
 	defaultCtx        = 4096
 	defaultModsDir    = ""
-	defaultGoClawPort = 18790
+	defaultAistclawPort = 18790
 )
 
 func main() {
@@ -39,7 +39,7 @@ func main() {
 	server_ := flag.Bool("server", false, "Run in server/API-only mode (no GUI)")
 	useVLLM := flag.Bool("vllm", false, "Use vLLM backend instead of llama-server (requires --server)")
 	useEmbedded := flag.Bool("embedded", false, "Use CGO embedded llama.cpp runtime")
-	singleEngine := flag.Bool("single-engine", os.Getenv("AIST_SINGLE_ENGINE") != "0", "Run GoClaw under this backend process supervisor")
+	singleEngine := flag.Bool("single-engine", os.Getenv("AIST_SINGLE_ENGINE") != "0", "Run Aistclaw under this backend process supervisor")
 	modelsDir := flag.String("models-dir", defaultModsDir, "Directory to scan for .gguf models")
 	modelPath := flag.String("model", "", "Auto-load this model on startup")
 	port := flag.Int("port", defaultPort, "HTTP port to listen on")
@@ -122,13 +122,13 @@ func main() {
 	})
 	fmt.Println(string(portMsg))
 
-	var goclawProcess *exec.Cmd
+	var aistclawProcess *exec.Cmd
 	if *singleEngine {
-		goclawProcess = startGoClawSupervisor(defaultGoClawPort)
-		if goclawProcess != nil {
+		aistclawProcess = startAistclawSupervisor(defaultAistclawPort)
+		if aistclawProcess != nil {
 			goClawMsg, _ := json.Marshal(map[string]interface{}{
-				"type": "goclaw:port",
-				"port": defaultGoClawPort,
+				"type": "aistclaw:port",
+				"port": defaultAistclawPort,
 			})
 			fmt.Println(string(goClawMsg))
 		}
@@ -140,8 +140,8 @@ func main() {
 	go func() {
 		<-sigChan
 		log.Println("[aist] Shutting down...")
-		if goclawProcess != nil && goclawProcess.Process != nil {
-			_ = goclawProcess.Process.Kill()
+		if aistclawProcess != nil && aistclawProcess.Process != nil {
+			_ = aistclawProcess.Process.Kill()
 		}
 		eng.Shutdown()
 		os.Exit(0)
@@ -255,12 +255,38 @@ func printBanner(serverMode, cpuOnly, vllm bool) {
 	fmt.Println()
 }
 
-func startGoClawSupervisor(port int) *exec.Cmd {
+func startAistclawSupervisor(port int) *exec.Cmd {
 	exePath, _ := os.Executable()
 	exeDir := filepath.Dir(exePath)
-	env := append(os.Environ(), fmt.Sprintf("GOCLAW_PORT=%d", port))
+	env := append(
+		os.Environ(),
+		fmt.Sprintf("AISTCLAW_PORT=%d", port),
+		"AISTCLAW_DESKTOP=1",
+	)
 
-	devModuleDir := filepath.Join(exeDir, "goclaw")
+	binaryCandidates := []string{
+		filepath.Join(exeDir, "backend", "aistclaw.exe"),
+		filepath.Join(exeDir, "..", "..", "extensions", "backend", "aistclaw.exe"),
+		filepath.Join(exeDir, "aistclaw.exe"),
+	}
+	for _, binaryPath := range binaryCandidates {
+		if _, err := os.Stat(binaryPath); err != nil {
+			continue
+		}
+		cmd := exec.Command(binaryPath)
+		cmd.Dir = filepath.Dir(binaryPath)
+		cmd.Env = env
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Start(); err != nil {
+			log.Printf("[aist] Failed to start Aistclaw (binary %s): %v", binaryPath, err)
+			return nil
+		}
+		log.Printf("[aist] Aistclaw supervisor started (binary %s) on port %d", binaryPath, port)
+		return cmd
+	}
+
+	devModuleDir := filepath.Join(exeDir, "aistclaw")
 	if st, err := os.Stat(devModuleDir); err == nil && st.IsDir() {
 		cmd := exec.Command("go", "run", ".")
 		cmd.Dir = devModuleDir
@@ -268,28 +294,13 @@ func startGoClawSupervisor(port int) *exec.Cmd {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		if err := cmd.Start(); err != nil {
-			log.Printf("[aist] Failed to start GoClaw (dev): %v", err)
+			log.Printf("[aist] Failed to start Aistclaw (source fallback): %v", err)
 			return nil
 		}
-		log.Printf("[aist] GoClaw supervisor started (dev) on port %d", port)
+		log.Printf("[aist] Aistclaw supervisor started (source fallback) on port %d", port)
 		return cmd
 	}
 
-	binaryPath := filepath.Join(exeDir, "goclaw.exe")
-	if _, err := os.Stat(binaryPath); err != nil {
-		log.Printf("[aist] GoClaw binary not found at %s", binaryPath)
-		return nil
-	}
-
-	cmd := exec.Command(binaryPath)
-	cmd.Dir = exeDir
-	cmd.Env = env
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Start(); err != nil {
-		log.Printf("[aist] Failed to start GoClaw (prod): %v", err)
-		return nil
-	}
-	log.Printf("[aist] GoClaw supervisor started (prod) on port %d", port)
-	return cmd
+	log.Printf("[aist] Aistclaw binary not found in expected locations: %v", binaryCandidates)
+	return nil
 }

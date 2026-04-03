@@ -1,7 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -16,20 +15,20 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     include: ["i18next", "react-i18next"],
   },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@goclaw/api": path.resolve(__dirname, "./src/api/goclaw"),
-      "@goclaw/components": path.resolve(__dirname, "./src/components/goclaw"),
-      "@goclaw/constants": path.resolve(__dirname, "./src/constants/goclaw"),
-      "@goclaw/hooks": path.resolve(__dirname, "./src/hooks/goclaw"),
-      "@goclaw/i18n": path.resolve(__dirname, "./src/i18n/goclaw"),
-      "@goclaw/lib": path.resolve(__dirname, "./src/lib/goclaw"),
-      "@goclaw/pages": path.resolve(__dirname, "./src/pages/goclaw"),
-      "@goclaw/stores": path.resolve(__dirname, "./src/stores/goclaw"),
-      "@goclaw/types": path.resolve(__dirname, "./src/types/goclaw"),
-      "@goclaw": path.resolve(__dirname, "./src/goclaw"),
+      "@aistclaw/api": path.resolve(__dirname, "./src/api/aistclaw"),
+      "@aistclaw/components": path.resolve(__dirname, "./src/components/aistclaw"),
+      "@aistclaw/constants": path.resolve(__dirname, "./src/constants/aistclaw"),
+      "@aistclaw/hooks": path.resolve(__dirname, "./src/hooks/aistclaw"),
+      "@aistclaw/i18n": path.resolve(__dirname, "./src/i18n/aistclaw"),
+      "@aistclaw/lib": path.resolve(__dirname, "./src/lib/aistclaw"),
+      "@aistclaw/pages": path.resolve(__dirname, "./src/pages/aistclaw"),
+      "@aistclaw/routes": path.resolve(__dirname, "./src/aistclaw-routes.tsx"),
+      "@aistclaw/stores": path.resolve(__dirname, "./src/stores/aistclaw"),
+      "@aistclaw/types": path.resolve(__dirname, "./src/types/aistclaw"),
     },
   },
 }));

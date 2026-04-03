@@ -1,4 +1,4 @@
-import type { ToolItem, ApiProvider } from "@/pages/Index";
+import type { ToolItem, ApiProvider } from "@/types";
 import { useChatLogic } from "@/components/chat/useChatLogic";
 import { ChatUI } from "@/components/chat/ChatUI";
 
