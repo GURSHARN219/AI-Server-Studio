@@ -1,0 +1,49 @@
+# Dependencies
+/node_modules/
+
+# Build outputs
+/dist/
+/dist-ssr/
+/electron-dist/
+/release/
+/extensions/
+
+# Go build output (local dev binary)
+/src/backend/engine.exe
+
+# Go caches and local binaries
+.gocache/
+.gotmp/
+bin/
+
+# Runtime data and temporary logs
+/data/
+logs/
+*.log
+*.zip
+*.7z
+tmp_engine_*.log
+
+# Local environment and machine-specific config
+.env
+.env.*
+!.env.example
+*.local
+
+# Test coverage and cache
+coverage/
+.nyc_output/
+.cache/
+
+# Editor directories and files
+/.cursor/
+/.kiro/
+/.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

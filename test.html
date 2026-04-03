@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Providers Settings</title>
+  <style>
+    :root {
+      --bg-app: #090a0f;
+      --bg-sidebar: #13151a;
+      --bg-panel: #1b1d24;
+      --bg-input: #121419;
+      --bg-hover: #2a2d36;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --border-color: #2e323b;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --border-radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-app);
+      color: var(--text-main);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar Styles */
+    .sidebar {
+      width: 260px;
+      background-color: var(--bg-sidebar);
+      border-right: 1px solid var(--border-color);
+      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-section {
+      margin-bottom: 24px;
+    }
+
+    .sidebar-title {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      padding: 0 20px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+
+    .nav-item {
+      padding: 10px 20px;
+      color: var(--text-muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .nav-item:hover {
+      background-color: var(--bg-hover);
+      color: var(--text-main);
+    }
+
+    .nav-item.active {
+      color: var(--text-main);
+      background-color: var(--bg-panel);
+      border-left: 3px solid #eab308; /* Yellow accent line */
+    }
+
+    /* Main Content Area */
+    .main-content {
+      flex: 1;
+      padding: 40px;
+      display: flex;
+      justify-content: center;
+      overflow-y: auto;
+    }
+
+    .settings-panel {
+      background-color: var(--bg-panel);
+      width: 100%;
+      max-width: 800px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .panel-header h2 {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    /* Sections */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+
+    .btn:hover { opacity: 0.9; }
+
+    .btn-primary {
+      background-color: var(--accent-blue);
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: transparent;
+      color: var(--accent-blue);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+    }
+
+    /* API Provider Block */
+    .provider-card {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .provider-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .provider-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .badge-blue { background-color: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .badge-green { background-color: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .badge-gray { background-color: rgba(156, 163, 175, 0.15); color: #9ca3af; }
+
+    .provider-url {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: monospace;
+    }
+
+    .provider-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* Form & Inputs */
+    .inline-form-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      width: 100%;
+    }
+
+    select, input {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 10px 12px;
+      border-radius: var(--border-radius);
+      font-size: 14px;
+      outline: none;
+    }
+
+    select {
+      appearance: none;
+      flex: 1;
+      background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239ca3af%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px top 50%;
+      background-size: 10px auto;
+      padding-right: 30px;
+    }
+
+    /* Saved Models Inline List */
+    .saved-model-row {
+      background-color: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 14px;
+    }
+
+    .model-data-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .model-data-label {
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+
+    .model-data-value {
+      font-weight: 500;
+    }
+
+  </style>
+</head>
+<body>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Settings</div>
+      <a href="#" class="nav-item">Profile & Security</a>
+      <a href="#" class="nav-item">Appearance</a>
+      <a href="#" class="nav-item">Chat</a>
+      <a href="#" class="nav-item active">API Providers</a>
+      <a href="#" class="nav-item">MCP Servers</a>
+      <a href="#" class="nav-item">Tools</a>
+      <a href="#" class="nav-item">Server API</a>
+      <a href="#" class="nav-item">Paths</a>
+      <a href="#" class="nav-item">Advanced</a>
+      <a href="#" class="nav-item">About</a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="settings-panel">
+      
+      <div class="panel-header">
+        <h2>API Providers</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+
+      <section>
+        <div class="section-header">
+          <h3>API Providers</h3>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary">+ Add Provider</button>
+          </div>
+        </div>
+        <p class="subtitle">Configure API providers. Keys are encrypted and saved to your account.</p>
+        
+        <div class="provider-card">
+          <div class="provider-top">
+            <div class="provider-info">
+              <strong>test</strong>
+              <span class="badge badge-blue">openrouter</span>
+              <span class="badge badge-green">Key Set</span>
+            </div>
+            <div class="provider-actions">
+              <span style="color: var(--text-muted); cursor: pointer;">✎</span>
+              <div style="width: 32px; height: 18px; background: var(--accent-blue); border-radius: 10px; position: relative; cursor: pointer;">
+                <div style="width: 14px; height: 14px; background: white; border-radius: 50%; position: absolute; top: 2px; right: 2px;"></div>
+              </div>
+              <span style="color: var(--text-muted); cursor: pointer;">🗑</span>
+            </div>
+          </div>
+          <div class="provider-url">https://openrouter.ai/api/v1</div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-header">
+          <h3>Models</h3>
+        </div>
+        <p class="subtitle">Select API and model for chat and draw. Use search in the model dropdown.</p>
+        
+        <div class="inline-form-row">
+          <select>
+            <option>test</option>
+          </select>
+          <select>
+            <option>qwen/qwen3.6-plus:free</option>
+          </select>
+          <select style="max-width: 150px;">
+            <option>chat</option>
+          </select>
+          <button class="btn btn-primary" style="padding: 10px 20px;">Save Model</button>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-header">
+          <h3 style="font-size: 12px; color: var(--text-muted); text-transform: uppercase;">Saved Models</h3>
+        </div>
+        
+        <div class="saved-model-row">
+          <div class="model-data-group">
+            <span class="model-data-label">Provider:</span>
+            <span class="badge badge-blue">openrouter</span>
+          </div>
+          <div class="model-data-group">
+            <span class="model-data-value">test</span>
+          </div>
+          <div class="model-data-group" style="flex: 1;">
+            <span class="model-data-value">qwen/qwen3.6-plus:free</span>
+          </div>
+          <div class="model-data-group">
+            <span class="badge badge-gray">chat</span>
+          </div>
+          <button class="btn btn-outline" style="padding: 6px 10px; border: none;">🗑</button>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+</body>
+</html>

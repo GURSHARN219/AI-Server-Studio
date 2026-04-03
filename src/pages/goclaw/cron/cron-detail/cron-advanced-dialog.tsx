@@ -1,0 +1,203 @@
+import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { Save, Settings, Loader2 } from "lucide-react";
+import { Button } from "@goclaw/components/ui/button";
+import { Input } from "@goclaw/components/ui/input";
+import { Label } from "@goclaw/components/ui/label";
+import { Switch } from "@goclaw/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@goclaw/components/ui/dialog";
+import { ConfigGroupHeader } from "@goclaw/components/shared/config-group-header";
+import { Combobox } from "@goclaw/components/ui/combobox";
+import { getAllIanaTimezones, isValidIanaTimezone } from "@goclaw/lib/constants";
+import { toast } from "@goclaw/stores/use-toast-store";
+import type { CronJob, CronJobPatch } from "../hooks/use-cron";
+
+interface CronAdvancedDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  job: CronJob;
+  onUpdate?: (id: string, params: CronJobPatch) => Promise<void>;
+}
+
+function deriveState(job: CronJob) {
+  return {
+    timezone: job.schedule.tz ?? "UTC",
+    deliver: job.deliver ?? false,
+    channel: job.deliverChannel ?? "",
+    to: job.deliverTo ?? "",
+    wakeHeartbeat: job.wakeHeartbeat ?? false,
+    deleteAfterRun: job.deleteAfterRun ?? false,
+    stateless: job.stateless ?? false,
+  };
+}
+
+export function CronAdvancedDialog({ open, onOpenChange, job, onUpdate }: CronAdvancedDialogProps) {
+  const { t } = useTranslation("cron");
+  const { t: tc } = useTranslation("common");
+
+  const init = deriveState(job);
+  const [timezone, setTimezone] = useState(init.timezone);
+  const [deliver, setDeliver] = useState(init.deliver);
+  const [channel, setChannel] = useState(init.channel);
+  const [to, setTo] = useState(init.to);
+  const [wakeHeartbeat, setWakeHeartbeat] = useState(init.wakeHeartbeat);
+  const [deleteAfterRun, setDeleteAfterRun] = useState(init.deleteAfterRun);
+  const [stateless, setStateless] = useState(init.stateless);
+  const [saving, setSaving] = useState(false);
+
+  // Re-sync when dialog opens
+  useEffect(() => {
+    if (!open) return;
+    const s = deriveState(job);
+    setTimezone(s.timezone);
+    setDeliver(s.deliver);
+    setChannel(s.channel);
+    setTo(s.to);
+    setWakeHeartbeat(s.wakeHeartbeat);
+    setDeleteAfterRun(s.deleteAfterRun);
+    setStateless(s.stateless);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const handleSave = async () => {
+    if (!onUpdate) {
+      onOpenChange(false);
+      return;
+    }
+    if (timezone && timezone !== "UTC" && !isValidIanaTimezone(timezone)) {
+      toast.error(t("detail.invalidTimezone", "Invalid timezone"));
+      return;
+    }
+    setSaving(true);
+    try {
+      await onUpdate(job.id, {
+        schedule: {
+          ...job.schedule,
+          tz: timezone !== "UTC" ? timezone : undefined,
+        },
+        deliver,
+        deliverChannel: deliver ? channel.trim() || undefined : undefined,
+        deliverTo: deliver ? to.trim() || undefined : undefined,
+        wakeHeartbeat,
+        deleteAfterRun,
+        stateless,
+      });
+      onOpenChange(false);
+    } catch { // toast shown by hook
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] w-[95vw] flex flex-col sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            {t("detail.advanced")}
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto min-h-0 -mx-4 px-4 sm:-mx-6 sm:px-6 space-y-4">
+
+          {/* Scheduling */}
+          <ConfigGroupHeader
+            title={t("detail.scheduling")}
+            description={t("detail.schedulingDesc")}
+          />
+          <div className="space-y-2">
+            <Label htmlFor="adv-timezone">{t("detail.timezone")}</Label>
+            <Combobox
+              value={timezone}
+              onChange={setTimezone}
+              options={getAllIanaTimezones()}
+              placeholder={t("detail.timezone")}
+              className="text-base md:text-sm"
+            />
+            <p className="text-xs text-muted-foreground">{t("detail.timezoneDesc")}</p>
+          </div>
+
+          {/* Delivery */}
+          <ConfigGroupHeader
+            title={t("detail.delivery")}
+            description={t("detail.deliveryDesc")}
+          />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2.5">
+              <p className="text-sm font-medium">{t("detail.deliverToChannel")}</p>
+              <Switch checked={deliver} onCheckedChange={setDeliver} />
+            </div>
+
+            {deliver && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="adv-channel">{t("detail.channelLabel")}</Label>
+                  <Input
+                    id="adv-channel"
+                    value={channel}
+                    onChange={(e) => setChannel(e.target.value)}
+                    placeholder={t("detail.channelPlaceholder")}
+                    className="text-base md:text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="adv-to">{t("detail.toLabel")}</Label>
+                  <Input
+                    id="adv-to"
+                    value={to}
+                    onChange={(e) => setTo(e.target.value)}
+                    placeholder={t("detail.toPlaceholder")}
+                    className="text-base md:text-sm"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2.5">
+              <div>
+                <p className="text-sm font-medium">{t("detail.wakeHeartbeat")}</p>
+                <p className="text-xs text-muted-foreground">{t("detail.wakeHeartbeatDesc")}</p>
+              </div>
+              <Switch checked={wakeHeartbeat} onCheckedChange={setWakeHeartbeat} />
+            </div>
+          </div>
+
+          {/* Lifecycle */}
+          <ConfigGroupHeader
+            title={t("detail.lifecycle")}
+            description={t("detail.lifecycleDesc")}
+          />
+          <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2.5">
+            <div>
+              <p className="text-sm font-medium">{t("detail.deleteAfterRun")}</p>
+              <p className="text-xs text-muted-foreground">{t("detail.deleteAfterRunDesc")}</p>
+            </div>
+            <Switch checked={deleteAfterRun} onCheckedChange={setDeleteAfterRun} />
+          </div>
+
+          <div className="flex items-center justify-between gap-4 rounded-md border px-3 py-2.5">
+            <div>
+              <p className="text-sm font-medium">{t("stateless")}</p>
+              <p className="text-xs text-muted-foreground">{t("statelessHelp")}</p>
+            </div>
+            <Switch checked={stateless} onCheckedChange={setStateless} />
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 pt-4 border-t shrink-0">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            {tc("cancel")}
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {saving ? tc("saving") : tc("save")}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

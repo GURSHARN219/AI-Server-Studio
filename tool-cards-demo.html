@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Chat — Tool Call Cards Demo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0d0f11;
+    --bg2: #13161a;
+    --bg3: #1a1e24;
+    --bg4: #21262e;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8eaed;
+    --text2: #9aa0ab;
+    --text3: #5a6270;
+    --primary: #5b8dff;
+    --primary-dim: rgba(91,141,255,0.12);
+    --primary-border: rgba(91,141,255,0.3);
+    --emerald: #34d399;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --violet: #a78bfa;
+    --blue: #60a5fa;
+    --user-bubble: #2563eb;
+    --radius: 12px;
+    --card-radius: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg2);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 8px var(--primary); }
+  .header h1 { font-size: 13px; font-weight: 600; color: var(--text); }
+  .header span { font-size: 11px; color: var(--text3); margin-left: auto; }
+
+  /* Chat area */
+  .chat { flex: 1; padding: 24px 0; max-width: 760px; width: 100%; margin: 0 auto; padding-left: 20px; padding-right: 20px; display: flex; flex-direction: column; gap: 28px; }
+
+  /* Bug report banner */
+  .bug-banner {
+    background: rgba(251,191,36,0.07);
+    border: 1px solid rgba(251,191,36,0.2);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.6;
+  }
+  .bug-banner h3 { font-size: 12px; font-weight: 600; color: var(--amber); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .bug-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  .bug-list li { display: flex; gap-8px; gap: 8px; }
+  .bug-tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
+  .tag-bug { background: rgba(248,113,113,0.15); color: var(--red); }
+  .tag-fix { background: rgba(52,211,153,0.15); color: var(--emerald); }
+  .tag-enhance { background: rgba(91,141,255,0.15); color: var(--primary); }
+
+  /* Message row */
+  .msg-row { display: flex; gap: 12px; }
+  .msg-row.user { justify-content: flex-end; }
+
+  /* Avatar */
+  .avatar { width: 26px; height: 26px; border-radius: 8px; background: var(--primary-dim); border: 1px solid var(--primary-border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .avatar svg { width: 14px; height: 14px; color: var(--primary); }
+
+  /* User bubble */
+  .user-bubble { background: var(--user-bubble); color: #fff; padding: 10px 14px; border-radius: 18px 18px 4px 18px; font-size: 13px; line-height: 1.5; max-width: 480px; }
+
+  /* Assistant content */
+  .assistant-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .model-name { font-size: 11px; font-weight: 600; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .model-name span { font-size: 10px; color: var(--text3); font-weight: 400; }
+
+  /* Tool call cards */
+  .tool-cards { display: flex; flex-direction: column; gap: 6px; max-width: 92%; margin: 4px 0; }
+  .tool-summary-row { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text3); cursor: pointer; padding: 2px 0; margin-bottom: 2px; user-select: none; transition: color 0.15s; }
+  .tool-summary-row:hover { color: var(--text2); }
+  .tool-summary-row .check { color: var(--emerald); width: 12px; height: 12px; }
+
+  /* Individual card */
+  .tool-card {
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .tool-card.running {
+    border-color: var(--primary-border);
+    background: var(--primary-dim);
+    position: relative;
+  }
+  .tool-card.done { border-color: rgba(52,211,153,0.2); background: rgba(52,211,153,0.04); }
+  .tool-card.error { border-color: rgba(248,113,113,0.25); background: rgba(248,113,113,0.05); }
+
+  /* Running shimmer bar */
+  .shimmer-bar {
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* Card header */
+  .tool-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .tool-header:hover { background: rgba(255,255,255,0.04); }
+  .tool-header.no-result { cursor: default; }
+  .tool-header.no-result:hover { background: transparent; }
+
+  .status-icon { width: 14px; height: 14px; flex-shrink: 0; }
+  .status-icon.pending { color: var(--text3); }
+  .status-icon.running { color: var(--primary); animation: spin 1s linear infinite; }
+  .status-icon.done { color: var(--emerald); }
+  .status-icon.error { color: var(--red); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .tool-icon { width: 14px; height: 14px; flex-shrink: 0; }
+  .tool-icon.search { color: var(--blue); }
+  .tool-icon.fetch { color: var(--violet); }
+  .tool-icon.kb { color: var(--amber); }
+  .tool-icon.code { color: var(--emerald); }
+  .tool-icon.default { color: var(--primary); }
+
+  .tool-name { font-size: 12px; font-weight: 500; font-family: 'JetBrains Mono', monospace; color: var(--text); }
+  .tool-arg { font-size: 11px; color: var(--text3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .tool-meta { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .tool-duration { font-size: 9px; font-family: 'JetBrains Mono', monospace; color: var(--text3); }
+  .tool-running-label { font-size: 9px; color: var(--primary); opacity: 0.7; animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:0.7} 50%{opacity:0.3} }
+  .chevron { width: 12px; height: 12px; color: var(--text3); transition: transform 0.2s; }
+  .chevron.open { transform: rotate(180deg); }
+
+  /* Result body */
+  .tool-result {
+    border-top: 1px solid var(--border);
+    padding: 10px 12px;
+    display: none;
+  }
+  .tool-result.visible { display: block; }
+  .tool-card.done .tool-result { border-top-color: rgba(52,211,153,0.15); }
+  .tool-card.error .tool-result { border-top-color: rgba(248,113,113,0.2); }
+
+  /* Search result links */
+  .search-results { display: flex; flex-direction: column; gap: 6px; }
+  .search-link { display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; border-radius: 8px; text-decoration: none; transition: background 0.12s; }
+  .search-link:hover { background: rgba(255,255,255,0.05); }
+  .search-favicon { width: 16px; height: 16px; border-radius: 4px; background: rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .search-favicon svg { width: 10px; height: 10px; color: var(--primary); }
+  .search-title { font-size: 11px; font-weight: 500; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .search-url { font-size: 9px; color: var(--text3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .search-snippet { font-size: 10px; color: rgba(232,234,237,0.55); margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .show-more-btn { font-size: 10px; color: rgba(91,141,255,0.6); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 3px; margin-top: 6px; padding: 0; transition: color 0.15s; }
+  .show-more-btn:hover { color: var(--primary); }
+
+  /* Generic result */
+  .result-pre { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: rgba(232,234,237,0.6); white-space: pre-wrap; word-break: break-all; line-height: 1.6; max-height: 120px; overflow: hidden; transition: max-height 0.3s ease; }
+  .result-pre.expanded { max-height: 600px; }
+
+  /* Running dots */
+  .running-dots { display: flex; gap: 4px; align-items: center; padding: 6px 12px 8px; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(91,141,255,0.4); animation: bounce 1.2s ease-in-out infinite; }
+  .dot:nth-child(2) { animation-delay: 0.15s; }
+  .dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
+  .running-text { font-size: 10px; color: var(--text3); margin-left: 4px; }
+
+  /* Collapsed pill row */
+  .pill-row { display: flex; flex-wrap: wrap; gap: 5px; }
+  .tool-pill { display: flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg3); font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--text2); cursor: pointer; transition: all 0.15s; }
+  .tool-pill:hover { background: var(--bg4); color: var(--text); border-color: var(--border2); }
+
+  /* Response text */
+  .response-text { font-size: 13.5px; line-height: 1.7; color: var(--text); }
+  .response-text p { margin-bottom: 10px; }
+  .response-text strong { color: #fff; font-weight: 600; }
+
+  /* Section label */
+  .section-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+  /* Collapsed state for all cards */
+  .cards-collapsed { display: none; }
+
+  /* Thinking box */
+  .thinking-box { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; max-width: 88%; }
+  .thinking-header { display: flex; align-items: center; gap: 7px; padding: 8px 12px; background: rgba(255,255,255,0.03); font-size: 11px; color: var(--text2); cursor: pointer; transition: background 0.15s; }
+  .thinking-header:hover { background: rgba(255,255,255,0.05); }
+  .thinking-content { padding: 10px 14px; font-size: 11px; font-style: italic; color: var(--text3); line-height: 1.6; border-top: 1px solid var(--border); background: rgba(0,0,0,0.15); max-height: 180px; overflow-y: auto; white-space: pre-wrap; display: none; }
+  .thinking-content.open { display: block; }
+
+  /* SVG icon styles */
+  svg { display: inline-block; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-dot"></div>
+  <h1>Agent Chat — New Tool Card UI</h1>
+  <span>MessageBubble.tsx redesign</span>
+</div>
+
+<div class="chat">
+
+  <!-- Bug Report Banner -->
+  <div class="bug-banner">
+    <h3>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Bugs & Enhancements Found
+    </h3>
+    <ul class="bug-list">
+      <li><span class="bug-tag tag-bug">BUG</span> All tool calls collapsed into one box — user can't see individual results at a glance</li>
+      <li><span class="bug-tag tag-fix">FIX</span> Replaced <code>ToolSteps</code> with per-tool <code>ToolCallCard</code> — each tool = its own expandable card</li>
+      <li><span class="bug-tag tag-bug">BUG</span> <code>builtInTools</code> declared but unused in agent mode path (~line 235 useChatLogic)</li>
+      <li><span class="bug-tag tag-bug">BUG</span> <code>selectedProviderId</code> hardcoded to <code>"local"</code> — not persisted, breaks on reload with cloud providers</li>
+      <li><span class="bug-tag tag-bug">BUG</span> <code>events.findLast()</code> in AgentProgressPanel — not polyfilled, crashes in Firefox &lt;104 / Safari &lt;15.4</li>
+      <li><span class="bug-tag tag-bug">BUG</span> <code>saveThrottleRef</code> never cleared on unmount — setState called on unmounted component during fast navigation</li>
+      <li><span class="bug-tag tag-enhance">ENHANCE</span> After all tools finish, show collapsed "Used N tools" summary + pill row to save vertical space</li>
+      <li><span class="bug-tag tag-enhance">ENHANCE</span> Per-tool colour coding: search=blue, fetch=violet, kb=amber, code=emerald</li>
+      <li><span class="bug-tag tag-enhance">ENHANCE</span> Running tool shows animated shimmer bar + bouncing dots placeholder instead of static "Running…" text</li>
+      <li><span class="bug-tag tag-enhance">ENHANCE</span> Token count estimation (chars÷4) is very inaccurate — use <code>tiktoken</code> or at least cl100k heuristic</li>
+    </ul>
+  </div>
+
+  <!-- Section: Before -->
+  <div>
+    <div class="section-label">⚠ Before — All tools in one collapsed box</div>
+    <div class="msg-row">
+      <div class="avatar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </div>
+      <div class="assistant-content">
+        <div class="model-name">stepfun/step-3.5-flash:free <span>20:07</span></div>
+        <!-- Old: all 8 calls in one box -->
+        <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden; max-width:88%;">
+          <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--bg3);font-size:11px;color:var(--text2);">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            <span>8 tool calls</span>
+            <span style="font-size:9px;color:rgba(52,211,153,0.8);margin-left:4px;">✓</span>
+          </div>
+        </div>
+        <div class="response-text" style="margin-top:6px;font-size:12px;color:var(--text2);">↑ User has to expand this single box to see all 8 tool calls — no visibility into what ran</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section: After -->
+  <div>
+    <div class="section-label">✓ After — Individual cards per tool call</div>
+
+    <!-- User message -->
+    <div class="msg-row user" style="margin-bottom:20px;">
+      <div class="user-bubble">What's the current date and time, and what are the latest AI news headlines?</div>
+    </div>
+
+    <!-- Assistant with tool cards -->
+    <div class="msg-row">
+      <div class="avatar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      </div>
+      <div class="assistant-content">
+        <div class="model-name">stepfun/step-3.5-flash:free <span>20:07</span></div>
+
+        <!-- Thinking box -->
+        <div class="thinking-box">
+          <div class="thinking-header" onclick="this.nextElementSibling.classList.toggle('open')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/><circle cx="12" cy="12" r="10"/></svg>
+            <span>Reasoning</span>
+            <span style="font-size:10px;color:var(--text3);margin-left:4px;">3s</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:auto;color:var(--text3)"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+          <div class="thinking-content">The user wants two things: current date/time and latest AI headlines. I should use web-search for the time and then search for AI news. Let me call both tools in sequence.</div>
+        </div>
+
+        <!-- Tool cards container -->
+        <div class="tool-cards" id="cards-main">
+
+          <!-- Summary row (visible after all done) -->
+          <div class="tool-summary-row" onclick="toggleCollapse()" id="summary-row">
+            <svg class="chevron" id="summary-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Used 8 tools
+          </div>
+
+          <div id="cards-expanded">
+            <!-- Card 1: web-search — done, search results -->
+            <div class="tool-card done" id="card1" style="margin-bottom:6px;">
+              <div class="tool-header" onclick="toggleCard('card1','result1','chev1')">
+                <svg class="status-icon done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg class="tool-icon search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span class="tool-name">web-search</span>
+                <span class="tool-arg">— "current date and time"</span>
+                <div class="tool-meta">
+                  <span class="tool-duration">1271ms</span>
+                  <svg class="chevron open" id="chev1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              <div class="tool-result visible" id="result1">
+                <div class="search-results">
+                  <a class="search-link" href="#" onclick="return false">
+                    <div class="search-favicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+                    <div>
+                      <div class="search-title">timeanddate.com</div>
+                      <div class="search-url">https://www.timeanddate.com/</div>
+                      <div class="search-snippet">Set the current time of your favorite locations across time zones.</div>
+                    </div>
+                  </a>
+                  <a class="search-link" href="#" onclick="return false">
+                    <div class="search-favicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+                    <div>
+                      <div class="search-title">Time.is — exact time, any time zone</div>
+                      <div class="search-url">https://time.is/</div>
+                      <div class="search-snippet">7 million locations, 58 languages, synchronized with atomic clock time.</div>
+                    </div>
+                  </a>
+                  <a class="search-link" href="#" onclick="return false">
+                    <div class="search-favicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+                    <div>
+                      <div class="search-title">Today's Date and Time — Accurate Clock</div>
+                      <div class="search-url">https://todaydatetime.com/</div>
+                      <div class="search-snippet">Find today's date and time instantly with our precise clock.</div>
+                    </div>
+                  </a>
+                  <div style="font-size:9px;color:var(--text3);margin-top:4px;">+ 5 more results</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: url-fetch — done -->
+            <div class="tool-card done" id="card2" style="margin-bottom:6px;">
+              <div class="tool-header" onclick="toggleCard('card2','result2','chev2')">
+                <svg class="status-icon done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg class="tool-icon fetch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <span class="tool-name">url-fetch</span>
+                <span class="tool-arg">— https://www.example.com</span>
+                <div class="tool-meta">
+                  <span class="tool-duration">444ms</span>
+                  <svg class="chevron" id="chev2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              <div class="tool-result" id="result2">
+                <div style="font-size:11px;font-weight:500;color:var(--text);margin-bottom:3px;">Example Domain</div>
+                <div style="font-size:10px;color:var(--primary);margin-bottom:3px;">https://www.example.com</div>
+                <div style="font-size:10px;color:var(--text3);">This domain is for use in documentation examples without needing permission.</div>
+              </div>
+            </div>
+
+            <!-- Card 3: knowledge-base — done -->
+            <div class="tool-card done" id="card3" style="margin-bottom:6px;">
+              <div class="tool-header" onclick="toggleCard('card3','result3','chev3')">
+                <svg class="status-icon done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg class="tool-icon kb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <span class="tool-name">knowledge-base</span>
+                <span class="tool-arg">— add "Test Document"</span>
+                <div class="tool-meta">
+                  <span class="tool-duration">573ms</span>
+                  <svg class="chevron" id="chev3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              <div class="tool-result" id="result3">
+                <pre class="result-pre expanded" style="color:var(--emerald);">Saved: "Test Document" (ID: 2d167346-fa2e-4dc1-b9f7-2e3ba1c493f7)</pre>
+              </div>
+            </div>
+
+            <!-- Card 4: knowledge-base search -->
+            <div class="tool-card done" id="card4" style="margin-bottom:6px;">
+              <div class="tool-header" onclick="toggleCard('card4','result4','chev4')">
+                <svg class="status-icon done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg class="tool-icon kb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <span class="tool-name">knowledge-base</span>
+                <span class="tool-arg">— search "test"</span>
+                <div class="tool-meta">
+                  <span class="tool-duration">303ms</span>
+                  <svg class="chevron" id="chev4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              <div class="tool-result" id="result4">
+                <pre class="result-pre expanded">## Test Document
+This is a test document to verify the knowledge base functionality.</pre>
+              </div>
+            </div>
+
+            <!-- Card 5: js-sandbox — error -->
+            <div class="tool-card error" id="card5" style="margin-bottom:6px;">
+              <div class="tool-header no-result">
+                <svg class="status-icon error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <svg class="tool-icon code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                <span class="tool-name">js-sandbox</span>
+                <span class="tool-arg">— run code</span>
+                <div class="tool-meta"><span class="tool-duration">0ms</span></div>
+              </div>
+              <div class="tool-result visible" style="border-top-color:rgba(248,113,113,0.2);">
+                <span style="font-size:11px;color:var(--red);">Unknown tool "js-sandbox". Available: web.search, web.fetch, kb.search, kb.store, kb.list</span>
+              </div>
+            </div>
+
+            <!-- Card 6: python-sandbox — error -->
+            <div class="tool-card error" id="card6" style="margin-bottom:6px;">
+              <div class="tool-header no-result">
+                <svg class="status-icon error" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <svg class="tool-icon code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                <span class="tool-name">python-sandbox</span>
+                <span class="tool-arg">— run code</span>
+                <div class="tool-meta"><span class="tool-duration">0ms</span></div>
+              </div>
+              <div class="tool-result visible" style="border-top-color:rgba(248,113,113,0.2);">
+                <span style="font-size:11px;color:var(--red);">Unknown tool "python-sandbox". Available: web.search, web.fetch, kb.search, kb.store, kb.list</span>
+              </div>
+            </div>
+
+            <!-- Card 7: web-search — done, tech news -->
+            <div class="tool-card done" id="card7" style="margin-bottom:6px;">
+              <div class="tool-header" onclick="toggleCard('card7','result7','chev7')">
+                <svg class="status-icon done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg class="tool-icon search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span class="tool-name">web-search</span>
+                <span class="tool-arg">— "latest AI technology news"</span>
+                <div class="tool-meta">
+                  <span class="tool-duration">1256ms</span>
+                  <svg class="chevron" id="chev7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+              <div class="tool-result" id="result7">
+                <div class="search-results">
+                  <a class="search-link" href="#" onclick="return false">
+                    <div class="search-favicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+                    <div>
+                      <div class="search-title">Tech News | Today's Latest Technology News — Reuters</div>
+                      <div class="search-url">https://reuters.com/technology/</div>
+                      <div class="search-snippet">Breaking AI and technology news from Reuters.</div>
+                    </div>
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 8: RUNNING state demo -->
+            <div class="tool-card running" id="card8" style="margin-bottom:6px;">
+              <div class="shimmer-bar"></div>
+              <div class="tool-header no-result">
+                <svg class="status-icon running" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+                <svg class="tool-icon fetch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                <span class="tool-name">url-fetch</span>
+                <span class="tool-arg">— https://reuters.com/technology/</span>
+                <div class="tool-meta">
+                  <span class="tool-running-label">running</span>
+                </div>
+              </div>
+              <div class="running-dots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <span class="running-text">Fetching page…</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Collapsed pill row (hidden by default, shown when collapsed) -->
+          <div class="pill-row cards-collapsed" id="pill-row">
+            <div class="tool-pill" onclick="toggleCollapse()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><span>web-search ×2</span></div>
+            <div class="tool-pill" onclick="toggleCollapse()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span>url-fetch ×2</span></div>
+            <div class="tool-pill" onclick="toggleCollapse()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>knowledge-base ×2</span></div>
+            <div class="tool-pill" onclick="toggleCollapse()"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span style="color:var(--red);">errors ×2</span></div>
+          </div>
+        </div>
+
+        <div class="response-text">
+          <p>The current date and time has been fetched. I found 3 results from timeanddate.com, time.is, and similar sites.</p>
+          <p>For the latest AI headlines, Reuters Technology is reporting on recent developments. The knowledge base has been updated with the test document successfully.</p>
+          <p><strong>Note:</strong> The <code>js-sandbox</code> and <code>python-sandbox</code> tools are not available in this environment — you'll need to enable them in the tool configuration panel.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let collapsed = false;
+
+function toggleCard(cardId, resultId, chevId) {
+  const result = document.getElementById(resultId);
+  const chev = document.getElementById(chevId);
+  if (!result) return;
+  result.classList.toggle('visible');
+  if (chev) chev.classList.toggle('open');
+}
+
+function toggleCollapse() {
+  collapsed = !collapsed;
+  const expanded = document.getElementById('cards-expanded');
+  const pills = document.getElementById('pill-row');
+  const chev = document.getElementById('summary-chevron');
+  if (collapsed) {
+    expanded.style.display = 'none';
+    pills.classList.remove('cards-collapsed');
+    if (chev) chev.style.transform = 'rotate(-90deg)';
+  } else {
+    expanded.style.display = 'block';
+    pills.classList.add('cards-collapsed');
+    if (chev) chev.style.transform = '';
+  }
+}
+
+// Auto-open first card on load
+document.addEventListener('DOMContentLoaded', () => {
+  toggleCard('card1', 'result1', 'chev1');
+});
+</script>
+</body>
+</html>
