@@ -1,238 +1,521 @@
-import { useState } from "react";
-import { Copy, Download, Image as ImageIcon, Loader2, Sparkles, Video, Settings2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Clapperboard, Copy, Download, Image as ImageIcon, Loader2, Play, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { ApiProvider } from "@/types";
+import { fetchBackendProviderModels, sendBackendProviderImageGeneration, type FetchedModel } from "@/lib/api";
+import { getProviderModelPref } from "@/lib/providerModelPrefs";
 
-export default function MediaPage() {
+type MediaType = "image" | "video";
+type Quality = "standard" | "hd";
+type AspectRatio = "1:1" | "16:9" | "9:16" | "4:3";
+type VideoDuration = "2" | "4" | "8";
+
+type GeneratedResult = {
+  kind: MediaType;
+  prompt: string;
+  createdAt: number;
+  aspectRatio: AspectRatio;
+  quality: Quality;
+  videoDuration?: VideoDuration;
+  outputUrl?: string;
+};
+
+type MediaPageProps = {
+  providers: ApiProvider[];
+};
+
+const STORAGE_MEDIA_PROVIDER = "ai-server-media-provider";
+const STORAGE_MEDIA_MODEL_IMAGE = "ai-server-media-model-image";
+const STORAGE_MEDIA_MODEL_VIDEO = "ai-server-media-model-video";
+
+function getDefaultModelId(options: string[], providerId: string, mediaType: MediaType): string {
+  const pref = getProviderModelPref(providerId);
+  const selection = pref?.selections?.find((s) => s.modelType === mediaType);
+  const fromPref = selection?.modelId || pref?.defaultModel;
+  if (fromPref && options.includes(fromPref)) return fromPref;
+
+  const fromStorageKey = mediaType === "image" ? STORAGE_MEDIA_MODEL_IMAGE : STORAGE_MEDIA_MODEL_VIDEO;
+  const fromStorage = localStorage.getItem(fromStorageKey) || "";
+  if (fromStorage && options.includes(fromStorage)) return fromStorage;
+
+  return options[0] || "";
+}
+
+function sizeFromAspect(aspect: AspectRatio): string {
+  // OpenAI-compatible sizes; other providers may ignore or map differently.
+  switch (aspect) {
+    case "16:9":
+      return "1792x1024";
+    case "9:16":
+      return "1024x1792";
+    case "1:1":
+      return "1024x1024";
+    case "4:3":
+    default:
+      return "1024x1024";
+  }
+}
+
+export default function MediaPage({ providers }: MediaPageProps) {
+  const [mediaType, setMediaType] = useState<MediaType>("image");
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [mediaType, setMediaType] = useState<"image" | "video">("image");
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [result, setResult] = useState<GeneratedResult | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Settings
-  const [aspectRatio, setAspectRatio] = useState("1:1");
-  const [quality, setQuality] = useState("standard");
-  const [style, setStyle] = useState("realistic");
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>("1:1");
+  const [quality, setQuality] = useState<Quality>("standard");
+  const [videoDuration, setVideoDuration] = useState<VideoDuration>("4");
 
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-    
+  const availableProviders = useMemo(() => {
+    return providers.filter((p) => p.enabled && Boolean(p.baseUrl) && (p.id === "local" || Boolean(p.apiKey)));
+  }, [providers]);
+
+  const [providerId, setProviderId] = useState<string>(() => {
+    try {
+      return localStorage.getItem(STORAGE_MEDIA_PROVIDER) || "";
+    } catch {
+      return "";
+    }
+  });
+
+  const [fetchedModels, setFetchedModels] = useState<FetchedModel[]>([]);
+  const [modelId, setModelId] = useState<string>("");
+
+  useEffect(() => {
+    if (!availableProviders.length) return;
+    if (providerId && availableProviders.some((p) => p.id === providerId)) return;
+    setProviderId(availableProviders[0].id);
+  }, [availableProviders, providerId]);
+
+  useEffect(() => {
+    if (!providerId) return;
+    try {
+      localStorage.setItem(STORAGE_MEDIA_PROVIDER, providerId);
+    } catch {
+      // ignore
+    }
+  }, [providerId]);
+
+  useEffect(() => {
+    if (!providerId) {
+      setFetchedModels([]);
+      return;
+    }
+    const controller = new AbortController();
+    fetchBackendProviderModels(providerId, controller.signal)
+      .then((models) => setFetchedModels(models))
+      .catch(() => setFetchedModels([]));
+    return () => controller.abort();
+  }, [providerId]);
+
+  const modelOptions = useMemo(() => {
+    if (!providerId) return [] as string[];
+    const pref = getProviderModelPref(providerId);
+    const allowed = (pref?.allowedModels || []).filter(Boolean);
+    if (allowed.length) return allowed;
+    return (fetchedModels || []).map((m) => String(m.id || "")).filter(Boolean);
+  }, [providerId, fetchedModels]);
+
+  useEffect(() => {
+    if (!providerId) {
+      setModelId("");
+      return;
+    }
+    if (!modelOptions.length) {
+      setModelId("");
+      return;
+    }
+    if (modelId && modelOptions.includes(modelId)) return;
+    setModelId(getDefaultModelId(modelOptions, providerId, mediaType));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providerId, mediaType, modelOptions.join("|")]);
+
+  useEffect(() => {
+    if (!modelId) return;
+    const key = mediaType === "image" ? STORAGE_MEDIA_MODEL_IMAGE : STORAGE_MEDIA_MODEL_VIDEO;
+    try {
+      localStorage.setItem(key, modelId);
+    } catch {
+      // ignore
+    }
+  }, [mediaType, modelId]);
+
+  const promptPlaceholder = useMemo(() => {
+    return mediaType === "image"
+      ? "A minimal, modern product photo of a matte black smartwatch on a clean desk, soft studio lighting"
+      : "A smooth cinematic pan across a neon-lit city street at night, shallow depth of field";
+  }, [mediaType]);
+
+  const onGenerate = async () => {
+    const trimmed = prompt.trim();
+    if (!trimmed || isGenerating) return;
+
     setIsGenerating(true);
-    setResultUrl(null);
-    
-    // Simulate generation delay
-    setTimeout(() => {
+    setResult(null);
+    setErrorMessage(null);
+
+    if (!providerId) {
       setIsGenerating(false);
-      // Placeholder based on type
-      if (mediaType === "image") {
-        setResultUrl("https://images.unsplash.com/photo-1707343843437-caacff5cfa74?q=80&w=1080&auto=format&fit=crop");
-      } else {
-        // Placeholder for video (could just be a poster image or simple video link)
-        setResultUrl("https://images.unsplash.com/photo-1707344088636-3607e6e580a5?q=80&w=1080&auto=format&fit=crop");
+      setErrorMessage("Select a provider first.");
+      return;
+    }
+    if (!modelId) {
+      setIsGenerating(false);
+      setErrorMessage("Select a model first (Settings > Providers can restrict allowed models).");
+      return;
+    }
+
+    if (mediaType === "image") {
+      try {
+        const url = await sendBackendProviderImageGeneration(
+          providerId,
+          modelId,
+          trimmed,
+          sizeFromAspect(aspectRatio),
+        );
+        if (!url) throw new Error("Provider returned no image data");
+        setResult({
+          kind: "image",
+          prompt: trimmed,
+          createdAt: Date.now(),
+          aspectRatio,
+          quality,
+          outputUrl: url,
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Image generation failed";
+        setErrorMessage(msg);
+      } finally {
+        setIsGenerating(false);
       }
-    }, 3000);
+      return;
+    }
+
+    window.setTimeout(() => {
+      setResult({
+        kind: mediaType,
+        prompt: trimmed,
+        createdAt: Date.now(),
+        aspectRatio,
+        quality,
+        videoDuration: mediaType === "video" ? videoDuration : undefined,
+      });
+      setIsGenerating(false);
+    }, 900);
+  };
+
+  const onCopyPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(prompt.trim());
+    } catch {
+      // best-effort; no UI noise for now
+    }
+  };
+
+  const onDownload = () => {
+    if (!result) return;
+
+    if (result.kind === "image" && result.outputUrl) {
+      if (result.outputUrl.startsWith("data:")) {
+        const a = document.createElement("a");
+        a.href = result.outputUrl;
+        a.download = `open-studio-image-${result.createdAt}.png`;
+        a.click();
+        return;
+      }
+      window.open(result.outputUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const payload = {
+      kind: result.kind,
+      prompt: result.prompt,
+      aspectRatio: result.aspectRatio,
+      quality: result.quality,
+      ...(result.kind === "video" ? { durationSeconds: result.videoDuration } : {}),
+      createdAt: new Date(result.createdAt).toISOString(),
+      providerId,
+      modelId,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `open-studio-${result.kind}-request-${result.createdAt}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <div className="flex h-full w-full flex-col p-6 max-w-5xl mx-auto overflow-y-auto custom-scrollbar">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight mb-2">Media Studio</h1>
-        <p className="text-muted-foreground">
-          Generate stunning images and videos using advanced AI models.
-        </p>
+    <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="h-10 border-b border-border flex items-center justify-between px-4 shrink-0 bg-secondary/30">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
+            <Clapperboard className="w-3 h-3 text-primary" />
+          </div>
+          <span className="text-xs font-semibold text-foreground">Media Studio</span>
+          <span className="text-[10px] text-muted-foreground">Image / Video</span>
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              setMediaType("image");
+              setResult(null);
+            }}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+              mediaType === "image"
+                ? "bg-primary/10 text-primary border border-primary/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-surface-hover"
+            }`}
+          >
+            <ImageIcon className="w-3 h-3" />
+            Image
+          </button>
+          <button
+            onClick={() => {
+              setMediaType("video");
+              setResult(null);
+            }}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+              mediaType === "video"
+                ? "bg-primary/10 text-primary border border-primary/20"
+                : "text-muted-foreground hover:text-foreground hover:bg-surface-hover"
+            }`}
+          >
+            <Video className="w-3 h-3" />
+            Video
+          </button>
+        </div>
       </div>
 
-      <Tabs 
-        defaultValue="image" 
-        className="w-full"
-        onValueChange={(v) => {
-          setMediaType(v as "image" | "video");
-          setResultUrl(null);
-        }}
-      >
-        <div className="flex items-center justify-between mb-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2 h-11">
-            <TabsTrigger value="image" className="gap-2 text-sm">
-              <ImageIcon className="h-4 w-4" />
-              Image
-            </TabsTrigger>
-            <TabsTrigger value="video" className="gap-2 text-sm">
-              <Video className="h-4 w-4" />
-              Video
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full h-full">
-          {/* Controls Section */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
-            <Card className="p-4 border shadow-sm">
-              <div className="flex flex-col gap-4">
-                <div className="space-y-2">
+      <div className="flex-1 overflow-y-auto scrollbar-styled min-h-0">
+        <div className="mx-auto w-full max-w-5xl px-4 py-4">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+            <div className="lg:col-span-5">
+              <Card className="bg-card/60">
+                <CardHeader className="p-4 pb-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Prompt</Label>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted/50 px-2 py-1 rounded-md">
-                      <Sparkles className="h-3 w-3" />
-                      Auto-enhance
+                    <Label className="text-xs font-medium text-foreground">Prompt</Label>
+                    <span className="text-[10px] text-muted-foreground">Be specific. Mention lighting, lens, motion.</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] text-muted-foreground">Provider</Label>
+                      <Select value={providerId} onValueChange={(v) => { setProviderId(v); setResult(null); setErrorMessage(null); }}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder={availableProviders.length ? "Select" : "No providers"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableProviders.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] text-muted-foreground">Model</Label>
+                      <Select value={modelId} onValueChange={(v) => { setModelId(v); setResult(null); setErrorMessage(null); }}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder={modelOptions.length ? "Select" : "No models"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {modelOptions.map((m) => (
+                            <SelectItem key={m} value={m}>
+                              {m}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
+
                   <Textarea
-                    placeholder={`Describe the ${mediaType} you want to create in detail...`}
-                    className="min-h-[160px] resize-none focus-visible:ring-primary/20 text-md leading-relaxed"
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
+                    placeholder={promptPlaceholder}
+                    className="min-h-[140px] resize-none bg-transparent text-[13px] leading-snug text-foreground placeholder:text-muted-foreground/80 scrollbar-styled"
                   />
-                </div>
 
-                <div className="space-y-4 pt-2 border-t mt-2">
-                  <div className="flex items-center gap-2 text-sm font-medium mb-3">
-                    <Settings2 className="h-4 w-4" />
-                    Generation Settings
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Aspect Ratio</Label>
-                      <Select value={aspectRatio} onValueChange={setAspectRatio}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] text-muted-foreground">Aspect</Label>
+                      <Select value={aspectRatio} onValueChange={(v) => setAspectRatio(v as AspectRatio)}>
                         <SelectTrigger className="h-9">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1:1">Square (1:1)</SelectItem>
-                          <SelectItem value="16:9">Landscape (16:9)</SelectItem>
-                          <SelectItem value="9:16">Portrait (9:16)</SelectItem>
-                          <SelectItem value="4:3">Standard (4:3)</SelectItem>
+                          <SelectItem value="1:1">1:1</SelectItem>
+                          <SelectItem value="16:9">16:9</SelectItem>
+                          <SelectItem value="9:16">9:16</SelectItem>
+                          <SelectItem value="4:3">4:3</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Style</Label>
-                      <Select value={style} onValueChange={setStyle}>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] text-muted-foreground">Quality</Label>
+                      <Select value={quality} onValueChange={(v) => setQuality(v as Quality)}>
                         <SelectTrigger className="h-9">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="realistic">Realistic</SelectItem>
-                          <SelectItem value="cinematic">Cinematic</SelectItem>
-                          <SelectItem value="anime">Anime</SelectItem>
-                          <SelectItem value="3d-render">3D Render</SelectItem>
-                          <SelectItem value="digital-art">Digital Art</SelectItem>
+                          <SelectItem value="standard">Standard</SelectItem>
+                          <SelectItem value="hd">HD</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
-                    <div className="space-y-2 col-span-2">
-                      <Label className="text-xs text-muted-foreground">Quality</Label>
-                      <Select value={quality} onValueChange={setQuality}>
-                        <SelectTrigger className="h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="standard">Standard (Faster)</SelectItem>
-                          <SelectItem value="hd">HD (Better Details)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                <Button 
-                  className="w-full h-12 mt-2 font-medium" 
-                  size="lg"
-                  onClick={handleGenerate}
-                  disabled={!prompt.trim() || isGenerating}
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Generating {mediaType}...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-5 w-5" />
-                      Generate {mediaType === "image" ? "Image" : "Video"}
-                    </>
-                  )}
-                </Button>
-              </div>
-            </Card>
-          </div>
-
-          {/* Result Section */}
-          <div className="lg:col-span-7 h-full min-h-[500px]">
-            <Card className="h-full w-full border bg-muted/20 overflow-hidden relative flex flex-col shadow-sm">
-              {!isGenerating && !resultUrl && (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-muted-foreground">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    {mediaType === "image" ? (
-                      <ImageIcon className="h-8 w-8 opacity-50" />
-                    ) : (
-                      <Video className="h-8 w-8 opacity-50" />
+                    {mediaType === "video" && (
+                      <div className="space-y-1.5 col-span-2">
+                        <Label className="text-[11px] text-muted-foreground">Duration</Label>
+                        <Select value={videoDuration} onValueChange={(v) => setVideoDuration(v as VideoDuration)}>
+                          <SelectTrigger className="h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="2">2s</SelectItem>
+                            <SelectItem value="4">4s</SelectItem>
+                            <SelectItem value="8">8s</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     )}
                   </div>
-                  <h3 className="text-lg font-medium text-foreground mb-2">No {mediaType} generated yet</h3>
-                  <p className="text-sm max-w-sm">
-                    Write a descriptive prompt and hit generate to see your ideas come to life.
-                  </p>
-                </div>
-              )}
+                </CardContent>
+                <CardFooter className="p-4 pt-0 flex gap-2">
+                  <Button className="flex-1" onClick={onGenerate} disabled={!prompt.trim() || isGenerating}>
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating…
+                      </>
+                    ) : (
+                      <>
+                        Generate {mediaType === "image" ? "Image" : "Video"}
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={onCopyPrompt}
+                    disabled={!prompt.trim()}
+                    title="Copy prompt"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </CardFooter>
 
-              {isGenerating && (
-                <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-primary/5 animate-pulse" />
-                  <div className="w-16 h-16 relative">
-                    <div className="absolute inset-0 rounded-full border-t-2 border-primary animate-spin" />
-                    <div className="absolute inset-2 rounded-full border-r-2 border-primary/50 animate-spin-reverse" />
+                {errorMessage && (
+                  <div className="px-4 pb-4 -mt-2 text-xs text-destructive">
+                    {errorMessage}
                   </div>
-                  <p className="mt-6 font-medium text-primary animate-pulse">
-                    Crafting your {mediaType}...
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    This usually takes 10-20 seconds
-                  </p>
-                </div>
-              )}
+                )}
+              </Card>
+            </div>
 
-              {resultUrl && !isGenerating && (
-                <div className="flex-1 relative group bg-black/5 flex items-center justify-center">
-                  <img 
-                    src={resultUrl} 
-                    alt="Generated output" 
-                    className="max-w-full max-h-full object-contain rounded-md animate-in fade-in duration-500"
-                  />
-                  
-                  {/* Action overlay */}
-                  <div className="absolute bottom-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button size="icon" variant="secondary" className="h-9 w-9 rounded-full shadow-md hover:scale-105 transition-transform">
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button size="icon" variant="default" className="h-9 w-9 rounded-full shadow-md hover:scale-105 transition-transform">
-                      <Download className="h-4 w-4" />
-                    </Button>
+            <div className="lg:col-span-7">
+              <Card className="overflow-hidden">
+                <CardHeader className="p-4 pb-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-foreground">Preview</span>
+                    <div className="flex items-center gap-2">
+                      <Button variant="secondary" size="sm" onClick={onDownload} disabled={!result}>
+                        <Download className="mr-1.5 h-3.5 w-3.5" />
+                        Download
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </Card>
+                </CardHeader>
+                <CardContent className="p-4 pt-0">
+                  <div className="relative w-full min-h-[360px] rounded-md border border-border bg-secondary/10 overflow-hidden">
+                    {!result && !isGenerating && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 text-muted-foreground">
+                        <div className="w-11 h-11 rounded-md bg-secondary/30 flex items-center justify-center mb-3">
+                          {mediaType === "image" ? <ImageIcon className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+                        </div>
+                        <div className="text-sm font-medium text-foreground">Nothing generated yet</div>
+                        <div className="text-xs mt-1">Your output will appear here.</div>
+                      </div>
+                    )}
+
+                    {isGenerating && (
+                      <div className="absolute inset-0 flex items-center justify-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-xs">Generating preview…</span>
+                      </div>
+                    )}
+
+                    {result && !isGenerating && result.kind === "image" && result.outputUrl && (
+                      <div className="relative">
+                        <img
+                          src={result.outputUrl}
+                          alt="Generated image"
+                          className="w-full h-[360px] object-contain bg-background"
+                        />
+                      </div>
+                    )}
+
+                    {result && !isGenerating && !(result.kind === "image" && result.outputUrl) && (
+                      <div className="relative">
+                        <div className="w-full h-[360px] flex items-center justify-center bg-secondary/10">
+                          <div className="flex flex-col items-center gap-2 text-center px-6">
+                            <div className="w-12 h-12 rounded-md bg-secondary/40 flex items-center justify-center border border-border">
+                              {result.kind === "image" ? (
+                                <ImageIcon className="h-5 w-5 text-foreground" />
+                              ) : (
+                                <Video className="h-5 w-5 text-foreground" />
+                              )}
+                            </div>
+                            <div className="text-sm font-medium text-foreground">
+                              {result.kind === "image" ? "Image request ready" : "Video request ready"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {result.aspectRatio} • {result.quality === "hd" ? "HD" : "Standard"}
+                              {result.kind === "video" && result.videoDuration ? ` • ${result.videoDuration}s` : ""}
+                            </div>
+                          </div>
+
+                          {result.kind === "video" && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <div className="w-11 h-11 rounded-full bg-background/40 backdrop-blur flex items-center justify-center border border-border">
+                                <Play className="h-5 w-5 text-foreground" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {result && !isGenerating && (
+                    <div className="mt-3 text-[11px] text-muted-foreground line-clamp-2">
+                      <span className="text-foreground/80">Prompt:</span> {result.prompt}
+                    </div>
+                  )}
+
+                  {mediaType === "video" && (
+                    <div className="mt-2 text-[11px] text-muted-foreground">
+                      Video generation is UI-only right now (no backend route wired). Export the request JSON or hook up a provider endpoint.
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
-      </Tabs>
-      
-      {/* Global styles for this component */}
-      <style dangerouslySetInnerHTML={{__html: `
-        .animate-spin-reverse {
-          animation: spin-reverse 1s linear infinite;
-        }
-        @keyframes spin-reverse {
-          from { transform: rotate(360deg); }
-          to { transform: rotate(0deg); }
-        }
-      `}} />
+      </div>
     </div>
   );
 }

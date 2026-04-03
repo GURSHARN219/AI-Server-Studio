@@ -329,7 +329,7 @@ const Index = () => {
               {currentPage === "api" && <ApiGatewayPage />}
               {currentPage === "voice" && <VoicePage mode={executionMode} providers={providers} />}
               {currentPage === "clawui" && <ClawUiPage />}
-              {currentPage === "media" && <MediaPage />}
+              {currentPage === "media" && <MediaPage providers={providers} />}
 
               <AnimatePresence>
                 {showModelConfig && selectedModelName && (currentPage === "chat" || currentPage === "models") && (

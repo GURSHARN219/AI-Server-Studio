@@ -1,7 +1,7 @@
 // Shared application types — single source of truth
 // Previously scattered across src/pages/Index.tsx
 
-export type Page = "chat" | "discover" | "models" | "search" | "server" | "settings" | "api" | "voice" | "clawui";
+export type Page = "chat" | "discover" | "models" | "search" | "server" | "settings" | "api" | "voice" | "media" | "clawui";
 
 export type UserRole = "user" | "power-user" | "developer";
 
