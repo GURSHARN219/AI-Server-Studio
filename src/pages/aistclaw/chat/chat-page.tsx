@@ -260,6 +260,12 @@ export function ChatPage() {
             onToggleTaskPanel={() => setTaskPanelOpen((v) => !v)}
           />
 
+          {!agentConfirmed && messages.length === 0 && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center p-4 bg-background/50 backdrop-blur-[2px]">
+              <AgentPickerPrompt onSelect={handleAgentChange} />
+            </div>
+          )}
+
           {!isOwn ? (
             <div className="mx-auto mb-6 flex max-w-2xl items-center gap-3 rounded-2xl border bg-muted/30 backdrop-blur-md px-4 py-3 text-sm text-muted-foreground shadow-sm shrink-0">
               <Eye className="h-4 w-4" />
@@ -267,9 +273,9 @@ export function ChatPage() {
             </div>
           ) : (
             <div className="sticky bottom-0 z-20 w-full pt-8 pb-0 bg-gradient-to-t from-background via-background/90 to-transparent shrink-0">
-              {!agentConfirmed && (
+              {!agentConfirmed && messages.length > 0 && (
                 <div className="mx-auto max-w-3xl px-4 mb-4">
-                  <AgentPickerPrompt onSelect={handleAgentChange} />
+                  <AgentPickerPrompt onSelect={handleAgentChange} compact />
                 </div>
               )}
               <ChatInput

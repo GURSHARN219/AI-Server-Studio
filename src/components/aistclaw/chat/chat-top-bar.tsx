@@ -52,14 +52,14 @@ export function ChatTopBar({ agentId, isRunning, isBusy, activity, teamTasks, on
   const PanelIcon = taskPanelOpen ? PanelRightClose : PanelRightOpen;
 
   return (
-    <div className="flex items-center justify-between border-b px-4 py-1.5">
+    <div className="flex items-center justify-between border-b px-3 py-1">
       <div className="flex items-center gap-2">
         {emoji ? (
           <span className="text-base">{emoji}</span>
         ) : (
-          <Bot className="h-4 w-4 text-muted-foreground" />
+          <Bot className="h-3.5 w-3.5 text-muted-foreground" />
         )}
-        <span className="text-sm font-semibold">{displayName}</span>
+        <span className="text-xs font-bold">{displayName}</span>
       </div>
 
       <div className="flex items-center gap-2">

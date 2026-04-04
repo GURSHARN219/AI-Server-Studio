@@ -80,14 +80,14 @@ export const SessionSwitcher = memo(function SessionSwitcher({ sessions, activeK
               key={session.key}
               type="button"
               onClick={() => onSelect(session.key)}
-              className={`group relative flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+              className={`group relative flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors ${
                 isActive ? "bg-accent text-accent-foreground" : "hover:bg-muted"
               }`}
             >
-              <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <MessageSquare className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
-                <div className="truncate font-medium text-[13px]">{label}</div>
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <div className="truncate font-medium text-[12px] leading-tight">{label}</div>
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
                   <span>{session.messageCount} {tc("messages")}</span>
                   <span>·</span>
                   <span>{formatRelativeTime(session.updated)}</span>

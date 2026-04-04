@@ -27,7 +27,7 @@ export function AgentPickerPrompt({ onSelect, compact = false }: AgentPickerProm
       .then((res) => {
         setAgents((res.agents ?? []).filter((a) => a.status === "active"));
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [http, connected]);
 
   if (compact) {

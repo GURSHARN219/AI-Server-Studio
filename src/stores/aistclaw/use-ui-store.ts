@@ -10,6 +10,7 @@ interface UiState {
   timezone: string; // IANA timezone or "auto"
   sidebarCollapsed: boolean;
   mobileSidebarOpen: boolean;
+  systemSettingsOpen: boolean;
 
   setTheme: (theme: Theme) => void;
   setLanguage: (language: Language) => void;
@@ -17,6 +18,7 @@ interface UiState {
   toggleSidebar: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setMobileSidebarOpen: (open: boolean) => void;
+  setSystemSettingsOpen: (open: boolean) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -26,6 +28,7 @@ export const useUiStore = create<UiState>((set) => ({
   sidebarCollapsed:
     localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_COLLAPSED) === "true",
   mobileSidebarOpen: false,
+  systemSettingsOpen: false,
 
   setTheme: (theme) => {
     localStorage.setItem(LOCAL_STORAGE_KEYS.THEME, theme);
@@ -55,4 +58,5 @@ export const useUiStore = create<UiState>((set) => ({
   },
 
   setMobileSidebarOpen: (open) => set({ mobileSidebarOpen: open }),
+  setSystemSettingsOpen: (open) => set({ systemSettingsOpen: open }),
 }));

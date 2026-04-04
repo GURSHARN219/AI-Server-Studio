@@ -26,6 +26,7 @@ interface IconSidebarProps {
   onChatNav?: () => void;
   showResourceWidget?: boolean;
   horizontal?: boolean;
+  onActivePageClick?: (page: Page) => void;
 }
 
 const allNavItems = [
@@ -93,6 +94,7 @@ function ResourceWidget() {
 export default function IconSidebar({
   currentPage, onPageChange, userRole, onOpenSettings, onOpenDownloads,
   downloadActiveCount = 0, onChatNav, showResourceWidget = false, horizontal = false,
+  onActivePageClick,
 }: IconSidebarProps) {
   const navItems = allNavItems.filter(item => roleLevel(userRole) >= roleLevel(item.minRole));
 
@@ -106,7 +108,14 @@ export default function IconSidebar({
             <button
               key={item.id}
               type="button"
-              onClick={() => { if (item.id === "chat" && onChatNav) onChatNav(); else onPageChange(item.id); }}
+              onClick={() => {
+                const isCurrent = currentPage === item.id;
+                if (isCurrent && onActivePageClick) {
+                  onActivePageClick(item.id);
+                }
+                if (item.id === "chat" && onChatNav) onChatNav();
+                else onPageChange(item.id);
+              }}
               className="relative w-7 h-7 flex items-center justify-center rounded-md transition-colors group"
             >
               {isActive && (
@@ -138,7 +147,7 @@ export default function IconSidebar({
 
   // Vertical sidebar (left or right)
   return (
-    <div className="w-9 h-full bg-sidebar flex flex-col items-center py-1.5 border-r border-sidebar-border shrink-0">
+    <div className="w-9 h-full bg-sidebar flex flex-col items-center py-1.5 border-r border-sidebar-border shrink-0 relative z-[60]">
       {navItems.map((item) => {
         const isActive = currentPage === item.id;
         return (
@@ -146,7 +155,14 @@ export default function IconSidebar({
             key={item.id}
             type="button"
             title={item.id === "chat" ? "Chat — click again to show or hide conversations" : undefined}
-            onClick={() => { if (item.id === "chat" && onChatNav) onChatNav(); else onPageChange(item.id); }}
+            onClick={() => {
+              const isCurrent = currentPage === item.id;
+              if (isCurrent && onActivePageClick) {
+                onActivePageClick(item.id);
+              }
+              if (item.id === "chat" && onChatNav) onChatNav();
+              else onPageChange(item.id);
+            }}
             className="relative w-7 h-7 flex items-center justify-center mb-0.5 rounded-md transition-colors group"
           >
             {isActive && (

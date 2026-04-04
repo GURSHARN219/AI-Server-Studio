@@ -1,5 +1,8 @@
-import React from "react";
-import { Minus, Square, X, Sun, Moon } from "lucide-react";
+import { Minus, Square, X, Sun, Moon, Settings2 } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { useUiStore } from "@aistclaw/stores/use-ui-store";
+import { useAuthStore } from "@aistclaw/stores/use-auth-store";
+import { UserMenu } from "@aistclaw/components/layout/user-menu";
 
 interface WindowTitleBarProps {
   theme?: "light" | "dark";
@@ -7,9 +10,15 @@ interface WindowTitleBarProps {
 }
 
 export default function WindowTitleBar({ theme, onToggleTheme }: WindowTitleBarProps) {
+  const location = useLocation();
+  const { setSystemSettingsOpen } = useUiStore();
+  const role = useAuthStore((s) => s.role);
+  const isAdmin = role === "admin" || role === "owner";
+  const isClawPage = location.pathname.includes("/aistclaw");
+
   return (
     <div
-      className="h-8 bg-titlebar flex items-center justify-between relative border-b border-border select-none shrink-0 px-2"
+      className="h-[var(--titlebar-h)] bg-titlebar flex items-center justify-between relative border-b border-border select-none shrink-0 px-2"
     >
       {/* OS DRAG REGION: Placed securely behind the buttons to prevent click swallowing */}
       <div className="absolute inset-0 w-full h-full region-drag z-0" />
@@ -35,6 +44,18 @@ export default function WindowTitleBar({ theme, onToggleTheme }: WindowTitleBarP
         ) : (
           <div className="w-7" />
         )}
+
+        {isClawPage && isAdmin && (
+          <button
+            onClick={() => setSystemSettingsOpen(true)}
+            className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded region-no-drag"
+            title="AistClaw System Settings"
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {isClawPage && <UserMenu />}
 
         <button
           onClick={() => {

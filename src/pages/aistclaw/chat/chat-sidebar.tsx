@@ -29,17 +29,18 @@ export const ChatSidebar = memo(function ChatSidebar({
 }: ChatSidebarProps) {
   const { t } = useTranslation("chat");
   return (
-    <div className="flex h-full w-72 max-w-[85vw] flex-col border-r bg-background">
+    <div className="flex h-full w-60 max-w-[85vw] flex-col border-r bg-background">
       {/* Agent selector */}
-      <div className="border-b p-3">
+      <div className="border-b px-3 py-2">
         <AgentSelector value={agentId} onChange={onAgentChange} />
       </div>
 
       {/* New chat button */}
-      <div className="p-3">
+      <div className="px-3 py-2">
         <Button
           variant="outline"
-          className="w-full justify-start gap-2"
+          size="sm"
+          className="w-full justify-start gap-2 h-8 text-xs font-medium"
           onClick={onNewChat}
         >
           <Plus className="h-4 w-4" />

@@ -72,17 +72,17 @@ export function AgentSelector({ value, onChange }: AgentSelectorProps) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm hover:bg-accent"
+        className="flex h-8 w-full items-center gap-2 rounded-lg border bg-background px-2.5 text-[11px] font-medium hover:bg-accent transition-colors"
       >
         {selectedEmoji ? (
           <span className="text-base shrink-0">{selectedEmoji}</span>
         ) : (
-          <Bot className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <Bot className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         )}
         <span className="flex-1 truncate text-left font-medium">
           {selected?.display_name ?? selected?.agent_key ?? (value || t("selectAgent"))}
         </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>
 
       {open && createPortal(

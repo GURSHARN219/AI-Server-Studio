@@ -2,7 +2,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { WifiOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Sidebar } from "./sidebar";
-import { Topbar } from "./topbar";
+import { SystemSettingsModal } from "./system-settings-modal";
 import { ErrorBoundary } from "@aistclaw/components/shared/error-boundary";
 import { useUiStore } from "@aistclaw/stores/use-ui-store";
 import { useAuthStore } from "@aistclaw/stores/use-auth-store";
@@ -30,24 +30,26 @@ export function AppLayout() {
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const mobileSidebarOpen = useUiStore((s) => s.mobileSidebarOpen);
   const setMobileSidebarOpen = useUiStore((s) => s.setMobileSidebarOpen);
+  const systemSettingsOpen = useUiStore((s) => s.systemSettingsOpen);
+  const setSystemSettingsOpen = useUiStore((s) => s.setSystemSettingsOpen);
   const connected = useAuthStore((s) => s.connected);
   const isMobile = useIsTablet();
 
   return (
-    <div className="flex h-dvh overflow-hidden safe-top">
+    <div className="flex h-full overflow-hidden">
       {isMobile ? (
         <>
           {/* Backdrop */}
           {mobileSidebarOpen && (
             <div
-              className="fixed inset-0 z-40 bg-black/50 transition-opacity"
+              className="fixed top-[var(--titlebar-h)] bottom-[var(--statusbar-h)] left-9 right-0 z-40 bg-black/50 transition-opacity"
               onClick={() => setMobileSidebarOpen(false)}
             />
           )}
           {/* Slide-out sidebar */}
           <div
             className={cn(
-              "fixed inset-y-0 left-0 z-50 safe-top safe-bottom safe-left transition-transform duration-200 ease-in-out",
+              "fixed top-[var(--titlebar-h)] bottom-[var(--statusbar-h)] left-9 z-50 shadow-xl transition-transform duration-200 ease-in-out",
               mobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
             )}
           >
@@ -58,19 +60,23 @@ export function AppLayout() {
         <Sidebar collapsed={sidebarCollapsed} />
       )}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Topbar />
         {!connected && (
           <div className="flex items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
             <WifiOff className="h-4 w-4 shrink-0" />
             <span>{t("disconnectedGateway")}</span>
           </div>
         )}
-        <main className="min-w-0 flex-1 flex flex-col overflow-hidden">
+        <main className="min-w-0 flex-1 flex flex-col overflow-y-auto">
           <ErrorBoundary key={stableErrorBoundaryKey(location.pathname)}>
             <Outlet />
           </ErrorBoundary>
         </main>
       </div>
+
+      <SystemSettingsModal
+        open={systemSettingsOpen}
+        onOpenChange={setSystemSettingsOpen}
+      />
     </div>
   );
 }

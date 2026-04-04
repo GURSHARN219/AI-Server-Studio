@@ -90,9 +90,10 @@ export default function ClawUiPage() {
   const userRole: UserRole = "developer";
 
   return (
-    <div className="aistclaw-host flex h-screen flex-col min-w-0 min-h-0 overflow-hidden bg-background">
-      <WindowTitleBar theme={isDark ? "dark" : "light"} onToggleTheme={toggleTheme} />
-      <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden">
+    <AppProviders>
+      <div className="aistclaw-host flex h-screen flex-col min-w-0 min-h-0 overflow-hidden bg-background">
+        <WindowTitleBar theme={isDark ? "dark" : "light"} onToggleTheme={toggleTheme} />
+      <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden items-stretch">
         <IconSidebar
           currentPage="clawui"
           onPageChange={handlePageChange}
@@ -101,11 +102,14 @@ export default function ClawUiPage() {
           onOpenDownloads={() => setShowDownloads(true)}
           downloadActiveCount={activeCount}
           showResourceWidget={advanced.showResourceWidget}
+          onActivePageClick={(page) => {
+            if (page === "clawui") {
+              useUiStore.getState().setMobileSidebarOpen(true);
+            }
+          }}
         />
         <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-          <AppProviders>
-            <AppRoutes />
-          </AppProviders>
+          <AppRoutes />
         </div>
 
         {showSettings && (
@@ -146,7 +150,7 @@ export default function ClawUiPage() {
         )}
       </div>
 
-      <div className="h-6 bg-statusbar border-t border-border flex items-center px-3 text-[10px] font-mono text-muted-foreground gap-4 shrink-0 select-none">
+      <div className="h-[var(--statusbar-h)] bg-statusbar border-t border-border flex items-center px-3 text-[10px] font-mono text-muted-foreground gap-4 shrink-0 select-none">
         <span className="text-foreground/60">AI Server Studio 0.1.01</span>
         <div className="flex-1" />
         <div className="flex items-center gap-1.5">
@@ -190,6 +194,7 @@ export default function ClawUiPage() {
           <span className="text-foreground/60 truncate max-w-[160px]">{engineStatus.model}</span>
         )}
       </div>
-    </div>
+      </div>
+    </AppProviders>
   );
 }

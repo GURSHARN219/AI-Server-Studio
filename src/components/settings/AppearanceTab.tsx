@@ -1,8 +1,11 @@
 import { useSettingsStore } from "@/stores/settingsStore";
 import { SelectField, ToggleField, SliderField, SegmentField, SectionHeader } from "./Primitives";
+import { useUiStore } from "@aistclaw/stores/use-ui-store";
+import { SUPPORTED_LANGUAGES, LANGUAGE_LABELS, TIMEZONE_OPTIONS, type Language } from "@aistclaw/lib/constants";
 
 export default function AppearanceTab() {
   const { appearance: s, setAppearance: set } = useSettingsStore();
+  const { language, setLanguage, timezone, setTimezone } = useUiStore();
 
   return (
     <div className="space-y-1">
@@ -48,6 +51,26 @@ export default function AppearanceTab() {
 
       <ToggleField label="Expand reasoning blocks by default" value={s.expandReasoningByDefault} onChange={v => set("expandReasoningByDefault", v)} />
       <ToggleField label="Show reasoning block vignette" value={s.showReasoningVignette} onChange={v => set("showReasoningVignette", v)} />
+
+      <SectionHeader>AistClaw Settings</SectionHeader>
+      <SelectField
+        label="Language"
+        value={language}
+        onChange={(v) => setLanguage(v as Language)}
+        options={SUPPORTED_LANGUAGES.map((lang) => ({
+          value: lang,
+          label: LANGUAGE_LABELS[lang],
+        }))}
+      />
+      <SelectField
+        label="Timezone"
+        value={timezone}
+        onChange={setTimezone}
+        options={TIMEZONE_OPTIONS.map((tz) => ({
+          value: tz.value,
+          label: tz.label,
+        }))}
+      />
     </div>
   );
 }
