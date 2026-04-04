@@ -261,23 +261,28 @@ export function ChatPage() {
           />
 
           {!isOwn ? (
-            <div className="mx-3 mb-3 flex items-center gap-2 rounded-xl border bg-muted/50 px-4 py-3 text-sm text-muted-foreground shadow-sm">
+            <div className="mx-auto mb-6 flex max-w-2xl items-center gap-3 rounded-2xl border bg-muted/30 backdrop-blur-md px-4 py-3 text-sm text-muted-foreground shadow-sm shrink-0">
               <Eye className="h-4 w-4" />
               {t("readOnly")}
             </div>
           ) : (
-            <>
-              {!agentConfirmed && <AgentPickerPrompt onSelect={handleAgentChange} />}
+            <div className="sticky bottom-0 z-20 w-full pt-8 pb-0 bg-gradient-to-t from-background via-background/90 to-transparent shrink-0">
+              {!agentConfirmed && (
+                <div className="mx-auto max-w-3xl px-4 mb-4">
+                  <AgentPickerPrompt onSelect={handleAgentChange} />
+                </div>
+              )}
               <ChatInput
                 onSend={handleSend}
                 onAbort={handleAbort}
                 isBusy={isBusy}
                 disabled={!connected || !agentConfirmed}
                 placeholder={!agentConfirmed ? t("selectAgent.description") : undefined}
+                helperText={!agentConfirmed ? t("selectAgent.description") : undefined}
                 files={files}
                 onFilesChange={setFiles}
               />
-            </>
+            </div>
           )}
         </DropZone>
       </div>

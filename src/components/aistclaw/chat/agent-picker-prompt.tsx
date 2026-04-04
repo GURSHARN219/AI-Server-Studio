@@ -7,13 +7,14 @@ import type { AgentData } from "@aistclaw/types/agent";
 
 interface AgentPickerPromptProps {
   onSelect: (agentId: string) => void;
+  compact?: boolean;
 }
 
 function agentEmoji(agent: AgentData): string | undefined {
   return (agent.other_config?.emoji as string) || undefined;
 }
 
-export function AgentPickerPrompt({ onSelect }: AgentPickerPromptProps) {
+export function AgentPickerPrompt({ onSelect, compact = false }: AgentPickerPromptProps) {
   const { t } = useTranslation("chat");
   const http = useHttp();
   const connected = useAuthStore((s) => s.connected);
@@ -28,6 +29,34 @@ export function AgentPickerPrompt({ onSelect }: AgentPickerPromptProps) {
       })
       .catch(() => {});
   }, [http, connected]);
+
+  if (compact) {
+    return (
+      <div className="mx-3 mb-2">
+        <div className="rounded-lg border bg-background/80 px-3 py-2 backdrop-blur-sm">
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {t("selectAgent.title")}
+          </p>
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+            {agents.map((agent) => {
+              const emoji = agentEmoji(agent);
+              return (
+                <button
+                  key={agent.agent_key}
+                  type="button"
+                  onClick={() => onSelect(agent.agent_key)}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-md border bg-card px-2.5 py-1.5 text-xs hover:bg-accent transition-colors"
+                >
+                  {emoji ? <span className="text-sm">{emoji}</span> : <Bot className="h-3.5 w-3.5 text-muted-foreground" />}
+                  <span className="max-w-[140px] truncate font-medium">{agent.display_name || agent.agent_key}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-3 mb-3 safe-bottom">

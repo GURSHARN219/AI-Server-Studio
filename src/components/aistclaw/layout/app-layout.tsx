@@ -65,7 +65,7 @@ export function AppLayout() {
             <span>{t("disconnectedGateway")}</span>
           </div>
         )}
-        <main className="min-w-0 flex-1 overflow-y-auto">
+        <main className="min-w-0 flex-1 flex flex-col overflow-hidden">
           <ErrorBoundary key={stableErrorBoundaryKey(location.pathname)}>
             <Outlet />
           </ErrorBoundary>

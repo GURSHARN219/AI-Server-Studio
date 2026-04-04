@@ -144,13 +144,13 @@ export const ChatThread = memo(function ChatThread({
       <div
         ref={ref}
         onScroll={onScroll}
-        className="flex-1 overflow-y-auto overscroll-contain px-4 py-4"
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-4"
         style={{
           backgroundImage: "radial-gradient(circle, var(--color-border) 1px, transparent 1px)",
           backgroundSize: "24px 24px",
         }}
       >
-        <div className="mx-auto max-w-3xl space-y-3">
+        <div className="mx-auto max-w-3xl space-y-3 pb-4">
           {displayItems.map((item) => {
             switch (item.kind) {
               case "notification":
@@ -185,13 +185,13 @@ function MergedToolGroup({ msgs }: { msgs: ChatMessage[] }) {
   const allThinking = msgs.map((m) => m.thinking).filter(Boolean);
 
   return (
-    <div className="flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-background">
-        <Bot className="h-4 w-4" />
+    <div className="flex gap-3 mb-4">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border bg-card/50 shadow-sm transition-all hover:bg-card">
+        <Bot className="h-5 w-5 text-primary" />
       </div>
-      <div className="flex-1 min-w-0 rounded-md border bg-muted/30 divide-y divide-border">
+      <div className="flex-1 min-w-0 rounded-2xl border bg-muted/20 backdrop-blur-sm divide-y divide-border/50 overflow-hidden shadow-sm">
         {allThinking.length > 0 && (
-          <div className="px-2 py-1.5">
+          <div className="px-3 py-2">
             <ThinkingBlock text={allThinking.join("\n\n")} />
           </div>
         )}

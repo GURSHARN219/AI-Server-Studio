@@ -15,11 +15,12 @@ interface ChatInputProps {
   isBusy: boolean;
   disabled?: boolean;
   placeholder?: string;
+  helperText?: string;
   files: AttachedFile[];
   onFilesChange: (files: AttachedFile[]) => void;
 }
 
-export function ChatInput({ onSend, onAbort, isBusy, disabled, placeholder, files, onFilesChange }: ChatInputProps) {
+export function ChatInput({ onSend, onAbort, isBusy, disabled, placeholder, helperText, files, onFilesChange }: ChatInputProps) {
   const { t } = useTranslation("common");
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -72,22 +73,22 @@ export function ChatInput({ onSend, onAbort, isBusy, disabled, placeholder, file
 
   return (
     <div
-      className="mx-3 mb-3 safe-bottom"
+      className="mx-auto w-full max-w-3xl px-4 py-2 mb-8 safe-bottom shrink-0"
       style={{ paddingBottom: `calc(env(safe-area-inset-bottom) + var(--keyboard-height, 0px))` }}
     >
       {/* Attached files preview */}
       {files.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-2">
+        <div className="flex flex-wrap gap-2 mb-3">
           {files.map((af, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-xs"
+              className="inline-flex items-center gap-1.5 rounded-full bg-muted/60 backdrop-blur-md px-3 py-1.5 text-xs font-medium shadow-sm border border-border/50"
             >
               <span className="max-w-[150px] truncate">{af.file.name}</span>
               <button
                 type="button"
                 onClick={() => removeFile(i)}
-                className="rounded-sm p-0.5 hover:bg-accent"
+                className="rounded-full p-0.5 hover:bg-background/80 transition-colors"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -105,16 +106,19 @@ export function ChatInput({ onSend, onAbort, isBusy, disabled, placeholder, file
       />
 
       {/* Input container — attach + textarea + send/stop inside one rounded box */}
-      <div className="flex items-end rounded-xl border bg-background/95 backdrop-blur-sm shadow-sm transition-colors focus-within:ring-1 focus-within:ring-ring">
+      <div
+        className={`flex items-end rounded-[1.75rem] border backdrop-blur-xl shadow-lg transition-all focus-within:shadow-xl focus-within:ring-2 focus-within:ring-primary/20 ${disabled ? "border-border/80 bg-muted/25" : "bg-background/80 border-border/50"
+          }`}
+      >
         {/* Attach button inside input */}
         <button
           type="button"
           onClick={handleFileSelect}
           disabled={disabled || isBusy}
           title={t("attachFile")}
-          className="shrink-0 p-3 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 cursor-pointer"
+          className="shrink-0 p-3.5 pl-4 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 cursor-pointer"
         >
-          <Paperclip className="h-4 w-4" />
+          <Paperclip className="h-5 w-5" />
         </button>
 
         {/* Textarea — no border, transparent bg */}
@@ -127,11 +131,11 @@ export function ChatInput({ onSend, onAbort, isBusy, disabled, placeholder, file
           placeholder={placeholder ?? t("sendMessage")}
           disabled={disabled}
           rows={1}
-          className="flex-1 resize-none bg-transparent py-3 px-0 text-base md:text-sm placeholder:text-muted-foreground focus:outline-none disabled:opacity-50"
+          className="flex-1 resize-none bg-transparent py-4 px-1 text-[15px] placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 min-h-[52px] max-h-[200px]"
         />
 
         {/* Send / Stop buttons */}
-        <div className="shrink-0 p-2 flex items-center gap-1">
+        <div className="shrink-0 p-2 pr-2.5 flex items-center gap-1">
           {isBusy ? (
             <>
               <button
@@ -139,15 +143,15 @@ export function ChatInput({ onSend, onAbort, isBusy, disabled, placeholder, file
                 onClick={handleSend}
                 disabled={!value.trim() || disabled}
                 title={t("sendFollowUp")}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-4 w-4 ml-0.5" />
               </button>
               <button
                 type="button"
                 onClick={onAbort}
                 title={t("stopGeneration")}
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-transform active:scale-95"
               >
                 <Square className="h-3.5 w-3.5" />
               </button>
@@ -158,13 +162,15 @@ export function ChatInput({ onSend, onAbort, isBusy, disabled, placeholder, file
               onClick={handleSend}
               disabled={!hasContent || disabled}
               title={t("sendMessageTitle")}
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-transform active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4 ml-0.5" />
             </button>
           )}
         </div>
       </div>
+
+      {helperText && <p className="mt-2 px-4 text-[11px] text-muted-foreground/70">{helperText}</p>}
     </div>
   );
 }
