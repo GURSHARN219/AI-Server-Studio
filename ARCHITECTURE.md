@@ -1,4 +1,4 @@
-# Architecture Overview
+﻿# Architecture Overview
 
 ## Table of Contents
 
@@ -58,15 +58,17 @@ The app targets Windows x86_64 and ships multiple pre-built llama.cpp backends c
 
 | Layer | Technology |
 |---|---|
-| Desktop shell | Electron (main + preload) |
-| Frontend framework | React 18 + TypeScript |
-| Build tool | Vite |
-| Styling | Tailwind CSS + shadcn/ui |
-| Animations | Framer Motion |
+| Desktop shell | Electron 34 (main + preload) |
+| Frontend framework | React 18 + TypeScript 5.8 |
+| Build tool | Vite 5.4 (SWC plugin) |
+| Styling | Tailwind CSS 3.4 + shadcn/ui |
+| Animations | Framer Motion 12 |
 | Routing | React Router v6 |
+| Client state | Zustand + localStorage persistence |
 | Server state | TanStack Query (React Query) |
 | Backend DB | Supabase (PostgreSQL + Auth + Edge Functions) |
-| Local inference | llama.cpp via Node.js native bindings (.node) |
+| Local inference | llama.cpp via Go wrapper + pre-built .dll binaries |
+| Enterprise backend | Go (Aistclaw — agents, teams, workflows) |
 | Package manager | Bun |
 | Linting | ESLint |
 | Testing | Vitest |
@@ -78,57 +80,57 @@ The app targets Windows x86_64 and ships multiple pre-built llama.cpp backends c
 ### 4.1 High-Level System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         ELECTRON DESKTOP APP                                │
-│                                                                             │
-│  ┌─────────────────┐   spawns   ┌──────────────────────────────────────┐   │
-│  │  electron/      │ ─────────► │  ENGINE PROCESS  (Node.js)           │   │
-│  │  main.ts        │            │  backendLoader → llamaEngine          │   │
-│  │  Main Process   │            │  openaiServer  :1234                  │   │
-│  │  IPC handlers   │            │  hardwareInfo                         │   │
-│  └────────┬────────┘            └──────────────┬───────────────────────┘   │
-│           │ spawns                             │ require(.node)             │
-│           │                    ┌───────────────▼───────────────────────┐   │
-│           │                    │  BACKENDS  extensions/backends/        │   │
-│           │                    │  ├─ llama.cpp AVX2        (CPU only)   │   │
-│           │                    │  ├─ llama.cpp CUDA 11     (NVIDIA)     │   │
-│           │                    │  ├─ llama.cpp CUDA 12     (NVIDIA)     │   │
-│           │                    │  └─ llama.cpp Vulkan      (any GPU)    │   │
-│           │                    └───────────────────────────────────────┘   │
-│           │ spawns                                                          │
-│           │            ┌────────────────────────────────────────────────┐  │
-│           │            │  DAEMON PROCESS  (Node.js)  :4000              │  │
-│           │            │  daemon.ts  ──► rag/server.js      :4001       │  │
-│           │            │               └► sandbox/server.js :4002       │  │
-│           │            └────────────────────────────────────────────────┘  │
-│           │ loads                                                           │
-│           ▼                                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  CHROMIUM RENDERER  (React + Vite)                                  │   │
-│  │  electron/preload.ts  contextBridge → window.electron               │   │
-│  │                                                                     │   │
-│  │  HTTP :1234 ──► Engine       supabase-js ──► Supabase Cloud         │   │
-│  │  HTTP :4000 ──► Daemon       fetch ──────────► HuggingFace          │   │
-│  │  HTTP :4001 ──► RAG          OpenAI-compat ──► Cloud Providers      │   │
-│  │  HTTP :4002 ──► Sandbox                                             │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────┘
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé                         ELECTRON DESKTOP APP                                Γöé
+Γöé                                                                             Γöé
+Γöé  ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   spawns   ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   Γöé
+Γöé  Γöé  electron/      Γöé ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû║ Γöé  ENGINE PROCESS  (Node.js)           Γöé   Γöé
+Γöé  Γöé  main.ts        Γöé            Γöé  backendLoader ΓåÆ llamaEngine          Γöé   Γöé
+Γöé  Γöé  Main Process   Γöé            Γöé  openaiServer  :1234                  Γöé   Γöé
+Γöé  Γöé  IPC handlers   Γöé            Γöé  hardwareInfo                         Γöé   Γöé
+Γöé  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ            ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ   Γöé
+Γöé           Γöé spawns                             Γöé require(.node)             Γöé
+Γöé           Γöé                    ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   Γöé
+Γöé           Γöé                    Γöé  BACKENDS  extensions/backends/        Γöé   Γöé
+Γöé           Γöé                    Γöé  Γö£ΓöÇ llama.cpp AVX2        (CPU only)   Γöé   Γöé
+Γöé           Γöé                    Γöé  Γö£ΓöÇ llama.cpp CUDA 11     (NVIDIA)     Γöé   Γöé
+Γöé           Γöé                    Γöé  Γö£ΓöÇ llama.cpp CUDA 12     (NVIDIA)     Γöé   Γöé
+Γöé           Γöé                    Γöé  ΓööΓöÇ llama.cpp Vulkan      (any GPU)    Γöé   Γöé
+Γöé           Γöé                    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ   Γöé
+Γöé           Γöé spawns                                                          Γöé
+Γöé           Γöé            ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ  Γöé
+Γöé           Γöé            Γöé  DAEMON PROCESS  (Node.js)  :4000              Γöé  Γöé
+Γöé           Γöé            Γöé  daemon.ts  ΓöÇΓöÇΓû║ rag/server.js      :4001       Γöé  Γöé
+Γöé           Γöé            Γöé               ΓööΓû║ sandbox/server.js :4002       Γöé  Γöé
+Γöé           Γöé            ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ  Γöé
+Γöé           Γöé loads                                                           Γöé
+Γöé           Γû╝                                                                 Γöé
+Γöé  ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   Γöé
+Γöé  Γöé  CHROMIUM RENDERER  (React + Vite)                                  Γöé   Γöé
+Γöé  Γöé  electron/preload.ts  contextBridge ΓåÆ window.electron               Γöé   Γöé
+Γöé  Γöé                                                                     Γöé   Γöé
+Γöé  Γöé  HTTP :1234 ΓöÇΓöÇΓû║ Engine       supabase-js ΓöÇΓöÇΓû║ Supabase Cloud         Γöé   Γöé
+Γöé  Γöé  HTTP :4000 ΓöÇΓöÇΓû║ Daemon       fetch ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû║ HuggingFace          Γöé   Γöé
+Γöé  Γöé  HTTP :4001 ΓöÇΓöÇΓû║ RAG          OpenAI-compat ΓöÇΓöÇΓû║ Cloud Providers      Γöé   Γöé
+Γöé  Γöé  HTTP :4002 ΓöÇΓöÇΓû║ Sandbox                                             Γöé   Γöé
+Γöé  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ   Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
 
-┌──────────────────────────┐    ┌──────────────────────────────────────────┐
-│  SUPABASE CLOUD          │    │  EXTERNAL SERVICES                       │
-│  ├─ Auth (email/OAuth)   │    │  ├─ HuggingFace API  (model catalog)     │
-│  ├─ PostgreSQL           │    │  ├─ HuggingFace CDN  (GGUF downloads)    │
-│  │  api_keys             │    │  ├─ OpenAI                               │
-│  │  api_providers        │    │  ├─ Anthropic                            │
-│  │  api_usage_logs       │    │  ├─ Google AI                            │
-│  │  documents            │    │  ├─ Mistral AI                           │
-│  │  mcp_servers          │    │  ├─ Groq                                 │
-│  │  profiles             │    │  ├─ Together AI                          │
-│  │  user_files           │    │  └─ OpenRouter                           │
-│  └─ Edge Functions       │    └──────────────────────────────────────────┘
-│     tool-execute         │
-│     api-proxy            │
-└──────────────────────────┘
+ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ    ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+Γöé  SUPABASE CLOUD          Γöé    Γöé  EXTERNAL SERVICES                       Γöé
+Γöé  Γö£ΓöÇ Auth (email/OAuth)   Γöé    Γöé  Γö£ΓöÇ HuggingFace API  (model catalog)     Γöé
+Γöé  Γö£ΓöÇ PostgreSQL           Γöé    Γöé  Γö£ΓöÇ HuggingFace CDN  (GGUF downloads)    Γöé
+Γöé  Γöé  api_keys             Γöé    Γöé  Γö£ΓöÇ OpenAI                               Γöé
+Γöé  Γöé  api_providers        Γöé    Γöé  Γö£ΓöÇ Anthropic                            Γöé
+Γöé  Γöé  api_usage_logs       Γöé    Γöé  Γö£ΓöÇ Google AI                            Γöé
+Γöé  Γöé  documents            Γöé    Γöé  Γö£ΓöÇ Mistral AI                           Γöé
+Γöé  Γöé  mcp_servers          Γöé    Γöé  Γö£ΓöÇ Groq                                 Γöé
+Γöé  Γöé  profiles             Γöé    Γöé  Γö£ΓöÇ Together AI                          Γöé
+Γöé  Γöé  user_files           Γöé    Γöé  ΓööΓöÇ OpenRouter                           Γöé
+Γöé  ΓööΓöÇ Edge Functions       Γöé    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+Γöé     tool-execute         Γöé
+Γöé     api-proxy            Γöé
+ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
 ```
 
 ```mermaid
@@ -165,7 +167,7 @@ graph TB
     subgraph SUPABASE["Supabase Cloud"]
         direction TB
         AUTH["Auth\n(email / OAuth)"]
-        DB["PostgreSQL\napi_keys · api_providers\napi_usage_logs · documents\nmcp_servers · profiles\nuser_files"]
+        DB["PostgreSQL\napi_keys ┬╖ api_providers\napi_usage_logs ┬╖ documents\nmcp_servers ┬╖ profiles\nuser_files"]
         EDGE["Edge Functions\ntool-execute\napi-proxy"]
     end
 
@@ -210,37 +212,37 @@ graph TB
 
 ```
   Windows OS
-  ══════════════════════════════════════════════════════════════════════
-  │
-  ├─► [Electron Main]  (Node.js)
-  │     electron/main.ts
-  │     BrowserWindow · IPC handlers
-  │     │
-  │     ├─ spawn ──► [Engine Process]  (Node.js child)
-  │     │              openaiServer.ts  Express :1234
-  │     │              llamaEngine.ts   LlamaEngine
-  │     │              ▲
-  │     │              └─ require(.node) ──► llm_engine_[cuda12|cuda|vulkan|].node
-  │     │
-  │     ├─ spawn ──► [Daemon Process]  (Node.js child)
-  │     │              daemon.ts  Express :4000
-  │     │              │
-  │     │              ├─ spawn ──► [RAG Server]      :4001
-  │     │              │              mcp/rag/server.js
-  │     │              │              tools: rag_search, rag_store
-  │     │              │
-  │     │              └─ spawn ──► [Sandbox Server]  :4002
-  │     │                             mcp/sandbox/server.js
-  │     │                             tools: run_js, run_python
-  │     │
-  │     └─ IPC ◄──────► [Renderer]  (Chromium)
-  │          minimize/maximize        React App  src/
-  │          close/open-path          │
-  │                                   ├─ HTTP fetch ──► :1234  (engine)
-  │                                   ├─ HTTP fetch ──► :4000  (daemon)
-  │                                   ├─ HTTP fetch ──► :4001  (rag)
-  │                                   └─ HTTP fetch ──► :4002  (sandbox)
-  ══════════════════════════════════════════════════════════════════════
+  ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  Γöé
+  Γö£ΓöÇΓû║ [Electron Main]  (Node.js)
+  Γöé     electron/main.ts
+  Γöé     BrowserWindow ┬╖ IPC handlers
+  Γöé     Γöé
+  Γöé     Γö£ΓöÇ spawn ΓöÇΓöÇΓû║ [Engine Process]  (Node.js child)
+  Γöé     Γöé              openaiServer.ts  Express :1234
+  Γöé     Γöé              llamaEngine.ts   LlamaEngine
+  Γöé     Γöé              Γû▓
+  Γöé     Γöé              ΓööΓöÇ require(.node) ΓöÇΓöÇΓû║ llm_engine_[cuda12|cuda|vulkan|].node
+  Γöé     Γöé
+  Γöé     Γö£ΓöÇ spawn ΓöÇΓöÇΓû║ [Daemon Process]  (Node.js child)
+  Γöé     Γöé              daemon.ts  Express :4000
+  Γöé     Γöé              Γöé
+  Γöé     Γöé              Γö£ΓöÇ spawn ΓöÇΓöÇΓû║ [RAG Server]      :4001
+  Γöé     Γöé              Γöé              mcp/rag/server.js
+  Γöé     Γöé              Γöé              tools: rag_search, rag_store
+  Γöé     Γöé              Γöé
+  Γöé     Γöé              ΓööΓöÇ spawn ΓöÇΓöÇΓû║ [Sandbox Server]  :4002
+  Γöé     Γöé                             mcp/sandbox/server.js
+  Γöé     Γöé                             tools: run_js, run_python
+  Γöé     Γöé
+  Γöé     ΓööΓöÇ IPC ΓùäΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓû║ [Renderer]  (Chromium)
+  Γöé          minimize/maximize        React App  src/
+  Γöé          close/open-path          Γöé
+  Γöé                                   Γö£ΓöÇ HTTP fetch ΓöÇΓöÇΓû║ :1234  (engine)
+  Γöé                                   Γö£ΓöÇ HTTP fetch ΓöÇΓöÇΓû║ :4000  (daemon)
+  Γöé                                   Γö£ΓöÇ HTTP fetch ΓöÇΓöÇΓû║ :4001  (rag)
+  Γöé                                   ΓööΓöÇ HTTP fetch ΓöÇΓöÇΓû║ :4002  (sandbox)
+  ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
 ```
 
 ```mermaid
@@ -284,75 +286,75 @@ graph LR
 
 ```
 App.tsx
-└── Index.tsx  (shell · auth gate · page router)
-    │   useAuth · useLocalEngine · useDownloadManager
-    │
-    ├── [Layout]
-    │   ├── Custom Titlebar  (window.electron: minimize/maximize/close)
-    │   ├── IconSidebar      (page nav · download badge)
-    │   └── Status Bar       (role switcher · token count · engine status)
-    │
-    ├── [Overlays]
-    │   ├── KeyboardShortcuts   (Ctrl+N / Ctrl+, / Ctrl+1-5)
-    │   ├── SettingsPage        (modal)
-    │   ├── DownloadManager     (modal)
-    │   └── ModelConfigPanel    (slide-in drawer)
-    │
-    └── [Pages]  — driven by currentPage state
-        │
-        ├── ChatPage
-        │   └── ChatUI
-        │       ├── SessionsSidebar
-        │       ├── MessageList
-        │       │   └── MessageBubble
-        │       │       └── CodeBlock
-        │       └── Input Toolbar
-        │           ├── ModelPicker
-        │           ├── ProviderPicker
-        │           ├── AgentPicker
-        │           ├── ToolConfigPanel
-        │           └── McpServersPanel
-        │
-        ├── DiscoverPage
-        │   ├── DiscoverFilters  (search · kind · capability pills)
-        │   ├── ModelList        (animated cards · download button)
-        │   └── ModelDetail      (HF file fetch · variant picker · README)
-        │
-        ├── ModelsPage           (local .gguf list · load/unload · manual path)
-        │
-        ├── ServerPage
-        │   ├── ServerHeader     (port · start/stop · URL)
-        │   ├── WebSocketPanel   (HTTP poll status · uptime · latency)
-        │   ├── LoadedModelsPanel
-        │   ├── EndpointsPanel   (test buttons · custom endpoints)
-        │   ├── DevLogs          (filter · search · pause · clear)
-        │   └── ServerStats      (right sidebar)
-        │
-        ├── ApiGatewayPage
-        │   ├── StatsRow         (requests · tokens · latency · error rate)
-        │   ├── ApiKeysTab       (create · toggle · delete)
-        │   ├── UsageTab         (by model aggregation)
-        │   ├── LogsTab          (request log table)
-        │   └── DocsTab          (Python/JS/cURL examples)
-        │
-        └── SettingsPage  (10 tabs)
-            ├── Profile          ├── Basics
-            ├── API Providers    ├── MCP Servers
-            ├── Tools            ├── Server API
-            ├── Paths            ├── Advanced
-            ├── Runtime          └── Hardware
+ΓööΓöÇΓöÇ Index.tsx  (shell ┬╖ auth gate ┬╖ page router)
+    Γöé   useAuth ┬╖ useLocalEngine ┬╖ useDownloadManager
+    Γöé
+    Γö£ΓöÇΓöÇ [Layout]
+    Γöé   Γö£ΓöÇΓöÇ Custom Titlebar  (window.electron: minimize/maximize/close)
+    Γöé   Γö£ΓöÇΓöÇ IconSidebar      (page nav ┬╖ download badge)
+    Γöé   ΓööΓöÇΓöÇ Status Bar       (role switcher ┬╖ token count ┬╖ engine status)
+    Γöé
+    Γö£ΓöÇΓöÇ [Overlays]
+    Γöé   Γö£ΓöÇΓöÇ KeyboardShortcuts   (Ctrl+N / Ctrl+, / Ctrl+1-5)
+    Γöé   Γö£ΓöÇΓöÇ SettingsPage        (modal)
+    Γöé   Γö£ΓöÇΓöÇ DownloadManager     (modal)
+    Γöé   ΓööΓöÇΓöÇ ModelConfigPanel    (slide-in drawer)
+    Γöé
+    ΓööΓöÇΓöÇ [Pages]  ΓÇö driven by currentPage state
+        Γöé
+        Γö£ΓöÇΓöÇ ChatPage
+        Γöé   ΓööΓöÇΓöÇ ChatUI
+        Γöé       Γö£ΓöÇΓöÇ SessionsSidebar
+        Γöé       Γö£ΓöÇΓöÇ MessageList
+        Γöé       Γöé   ΓööΓöÇΓöÇ MessageBubble
+        Γöé       Γöé       ΓööΓöÇΓöÇ CodeBlock
+        Γöé       ΓööΓöÇΓöÇ Input Toolbar
+        Γöé           Γö£ΓöÇΓöÇ ModelPicker
+        Γöé           Γö£ΓöÇΓöÇ ProviderPicker
+        Γöé           Γö£ΓöÇΓöÇ AgentPicker
+        Γöé           Γö£ΓöÇΓöÇ ToolConfigPanel
+        Γöé           ΓööΓöÇΓöÇ McpServersPanel
+        Γöé
+        Γö£ΓöÇΓöÇ DiscoverPage
+        Γöé   Γö£ΓöÇΓöÇ DiscoverFilters  (search ┬╖ kind ┬╖ capability pills)
+        Γöé   Γö£ΓöÇΓöÇ ModelList        (animated cards ┬╖ download button)
+        Γöé   ΓööΓöÇΓöÇ ModelDetail      (HF file fetch ┬╖ variant picker ┬╖ README)
+        Γöé
+        Γö£ΓöÇΓöÇ ModelsPage           (local .gguf list ┬╖ load/unload ┬╖ manual path)
+        Γöé
+        Γö£ΓöÇΓöÇ ServerPage
+        Γöé   Γö£ΓöÇΓöÇ ServerHeader     (port ┬╖ start/stop ┬╖ URL)
+        Γöé   Γö£ΓöÇΓöÇ WebSocketPanel   (HTTP poll status ┬╖ uptime ┬╖ latency)
+        Γöé   Γö£ΓöÇΓöÇ LoadedModelsPanel
+        Γöé   Γö£ΓöÇΓöÇ EndpointsPanel   (test buttons ┬╖ custom endpoints)
+        Γöé   Γö£ΓöÇΓöÇ DevLogs          (filter ┬╖ search ┬╖ pause ┬╖ clear)
+        Γöé   ΓööΓöÇΓöÇ ServerStats      (right sidebar)
+        Γöé
+        Γö£ΓöÇΓöÇ ApiGatewayPage
+        Γöé   Γö£ΓöÇΓöÇ StatsRow         (requests ┬╖ tokens ┬╖ latency ┬╖ error rate)
+        Γöé   Γö£ΓöÇΓöÇ ApiKeysTab       (create ┬╖ toggle ┬╖ delete)
+        Γöé   Γö£ΓöÇΓöÇ UsageTab         (by model aggregation)
+        Γöé   Γö£ΓöÇΓöÇ LogsTab          (request log table)
+        Γöé   ΓööΓöÇΓöÇ DocsTab          (Python/JS/cURL examples)
+        Γöé
+        ΓööΓöÇΓöÇ SettingsPage  (10 tabs)
+            Γö£ΓöÇΓöÇ Profile          Γö£ΓöÇΓöÇ Basics
+            Γö£ΓöÇΓöÇ API Providers    Γö£ΓöÇΓöÇ MCP Servers
+            Γö£ΓöÇΓöÇ Tools            Γö£ΓöÇΓöÇ Server API
+            Γö£ΓöÇΓöÇ Paths            Γö£ΓöÇΓöÇ Advanced
+            Γö£ΓöÇΓöÇ Runtime          ΓööΓöÇΓöÇ Hardware
 ```
 
 ```mermaid
 graph TD
-    APP["App.tsx\nQueryClient · Router · Toaster"]
-    INDEX["Index.tsx\nShell · Auth gate · Page router\nuseAuth · useLocalEngine\nuseDownloadManager"]
+    APP["App.tsx\nQueryClient ┬╖ Router ┬╖ Toaster"]
+    INDEX["Index.tsx\nShell ┬╖ Auth gate ┬╖ Page router\nuseAuth ┬╖ useLocalEngine\nuseDownloadManager"]
 
     APP --> INDEX
 
     INDEX --> SIDEBAR["IconSidebar\nPage navigation\nDownload badge"]
     INDEX --> TITLEBAR["Custom Titlebar\nwindow.electron controls"]
-    INDEX --> STATUSBAR["Status Bar\nRole switcher · Token count\nEngine status · Model name"]
+    INDEX --> STATUSBAR["Status Bar\nRole switcher ┬╖ Token count\nEngine status ┬╖ Model name"]
     INDEX --> SHORTCUTS["KeyboardShortcuts\nCtrl+N/,/1-5"]
 
     INDEX --> CHAT["ChatPage"]
@@ -368,7 +370,7 @@ graph TD
     CHATUI --> SESSIONS["SessionsSidebar"]
     CHATUI --> MSGLIST["MessageList"]
     MSGLIST --> BUBBLE["MessageBubble\n+ CodeBlock"]
-    CHATUI --> TOOLBAR["Input Toolbar\nModelPicker · ProviderPicker\nAgentPicker · ToolConfigPanel\nMcpServersPanel"]
+    CHATUI --> TOOLBAR["Input Toolbar\nModelPicker ┬╖ ProviderPicker\nAgentPicker ┬╖ ToolConfigPanel\nMcpServersPanel"]
 
     SERVER --> SH["ServerHeader"]
     SERVER --> WSP["WebSocketPanel"]
@@ -387,7 +389,7 @@ graph TD
     API --> LT["LogsTab"]
     API --> DT["DocsTab"]
 
-    SETTINGS --> STABS["10 Settings Tabs\nProfile · Basics · Providers\nMCP · Tools · API · Paths\nAdvanced · Runtime · Hardware"]
+    SETTINGS --> STABS["10 Settings Tabs\nProfile ┬╖ Basics ┬╖ Providers\nMCP ┬╖ Tools ┬╖ API ┬╖ Paths\nAdvanced ┬╖ Runtime ┬╖ Hardware"]
 ```
 
 ---
@@ -396,48 +398,48 @@ graph TD
 
 ```
   User types message + Enter
-       │
-       ▼
+       Γöé
+       Γû╝
   useChatLogic.sendMessage(text)
-       │
-       ├─ append { role:"user", content } to session
-       ├─ build ApiMessage[]  (full history)
-       └─ build ToolDefinition[]  (enabled tools + MCP tools)
-              │
-              ├─── [Local Engine] ──► POST localhost:1234/v1/chat/completions
-              │                           { stream:true, messages, tools }
-              │                       ◄── SSE token stream
-              │                           onToken() → update UI char-by-char
-              │
-              └─── [Cloud Provider] ──► POST provider.baseUrl/chat/completions
+       Γöé
+       Γö£ΓöÇ append { role:"user", content } to session
+       Γö£ΓöÇ build ApiMessage[]  (full history)
+       ΓööΓöÇ build ToolDefinition[]  (enabled tools + MCP tools)
+              Γöé
+              Γö£ΓöÇΓöÇΓöÇ [Local Engine] ΓöÇΓöÇΓû║ POST localhost:1234/v1/chat/completions
+              Γöé                           { stream:true, messages, tools }
+              Γöé                       ΓùäΓöÇΓöÇ SSE token stream
+              Γöé                           onToken() ΓåÆ update UI char-by-char
+              Γöé
+              ΓööΓöÇΓöÇΓöÇ [Cloud Provider] ΓöÇΓöÇΓû║ POST provider.baseUrl/chat/completions
                                             { stream:true, messages, tools }
-                                        ◄── SSE token stream
-                                            onToken() → update UI char-by-char
-       │
-       ▼
+                                        ΓùäΓöÇΓöÇ SSE token stream
+                                            onToken() ΓåÆ update UI char-by-char
+       Γöé
+       Γû╝
   response.finish_reason === "tool_calls"?
-       │
-       YES ──► for each tool_call in response.tool_calls:
-       │           │
-       │           ├─ is MCP tool?
-       │           │   YES ──► POST mcpServer.url
-       │           │               { method:"tools/call",
-       │           │                 params:{ name, arguments } }
-       │           │           ◄── result string
-       │           │
-       │           └─ is built-in tool?
-       │               YES ──► executeBuiltInTool(name, args, mode)
-       │                           mode check → blocked? return error msg
-       │                           web-search / url-fetch?
-       │                               ──► supabase.functions.invoke("tool-execute")
-       │                           else run locally
-       │                       ◄── result string
-       │
-       │       append { role:"tool", tool_call_id, content:result }
-       │       re-send full conversation  ◄── loop until no tool_calls
-       │
-       NO ──► append final { role:"assistant", content } to session
-              update tokenCount → propagate to status bar
+       Γöé
+       YES ΓöÇΓöÇΓû║ for each tool_call in response.tool_calls:
+       Γöé           Γöé
+       Γöé           Γö£ΓöÇ is MCP tool?
+       Γöé           Γöé   YES ΓöÇΓöÇΓû║ POST mcpServer.url
+       Γöé           Γöé               { method:"tools/call",
+       Γöé           Γöé                 params:{ name, arguments } }
+       Γöé           Γöé           ΓùäΓöÇΓöÇ result string
+       Γöé           Γöé
+       Γöé           ΓööΓöÇ is built-in tool?
+       Γöé               YES ΓöÇΓöÇΓû║ executeBuiltInTool(name, args, mode)
+       Γöé                           mode check ΓåÆ blocked? return error msg
+       Γöé                           web-search / url-fetch?
+       Γöé                               ΓöÇΓöÇΓû║ supabase.functions.invoke("tool-execute")
+       Γöé                           else run locally
+       Γöé                       ΓùäΓöÇΓöÇ result string
+       Γöé
+       Γöé       append { role:"tool", tool_call_id, content:result }
+       Γöé       re-send full conversation  ΓùäΓöÇΓöÇ loop until no tool_calls
+       Γöé
+       NO ΓöÇΓöÇΓû║ append final { role:"assistant", content } to session
+              update tokenCount ΓåÆ propagate to status bar
               persist session to localStorage
 ```
 
@@ -460,12 +462,12 @@ sequenceDiagram
     alt Local Engine selected
         Logic->>Engine: POST /v1/chat/completions\n{stream:true, tools:[...]}
         Engine-->>Logic: SSE token stream
-        Logic->>UI: onToken → update last message
+        Logic->>UI: onToken ΓåÆ update last message
         Engine-->>Logic: finish_reason
     else Cloud Provider selected
         Logic->>Cloud: POST /v1/chat/completions\n{stream:true, tools:[...]}
         Cloud-->>Logic: SSE token stream
-        Logic->>UI: onToken → update last message
+        Logic->>UI: onToken ΓåÆ update last message
     end
 
     alt response has tool_calls
@@ -496,61 +498,61 @@ sequenceDiagram
 
 ```
   executeToolCall(name, argsString, mcpToolDefs, mcpServers, executionMode)
-       │
-       ├─ parse argsString → JSON
-       │
-       ├─ name in mcpToolDefs?
-       │   YES ──► find McpServerConfig by serverId
-       │           server found?
-       │               YES ──► POST server.url
-       │                           { method:"tools/call",
-       │                             params:{ name, arguments } }
-       │                       ◄── result
-       │               NO  ──► Error: server not found
-       │
-       └─ NO (built-in) ──► executeBuiltInTool(name, args, mode)
-               │
-               ├─ canExecute(tool.capabilities, mode)?
-               │   NO  ──► "Blocked: requires [caps] in [mode] mode"
-               │
-               └─ YES ──► switch(name)
-                           │
-                           ├─ js-sandbox       new Function(code)()
-                           │                   capture console.log output
-                           │
-                           ├─ web-search       supabase.functions.invoke
-                           │                   "tool-execute" { tool:"web-search" }
-                           │
-                           ├─ url-fetch        supabase.functions.invoke
-                           │                   "tool-execute" { tool:"url-fetch" }
-                           │
-                           ├─ current-time     new Date() → ISO/local/unix/tz
-                           │
-                           ├─ calculator       recursive descent parser
-                           │                   +  -  *  /  %  ^  ()
-                           │                   NO eval / new Function
-                           │
-                           ├─ json-transform   format | minify | keys
-                           │                   count | query (dot-path)
-                           │
-                           ├─ random-generator uuid | password | number
-                           │                   color | lorem | name | email
-                           │
-                           ├─ base64           btoa() / atob()
-                           │
-                           ├─ hash             crypto.subtle.digest
-                           │                   SHA-256 | SHA-1 | SHA-384
-                           │
-                           ├─ file-read        supabase.from("user_files")
-                           │                   list | read | search
-                           │
-                           ├─ rag-cloud        supabase.from("documents")
-                           │                   textSearch fts | ilike fallback
-                           │                   search | add | list
-                           │
-                           ├─ rag-local        stub → "not available yet"
-                           │
-                           └─ unknown          Error: Unknown tool
+       Γöé
+       Γö£ΓöÇ parse argsString ΓåÆ JSON
+       Γöé
+       Γö£ΓöÇ name in mcpToolDefs?
+       Γöé   YES ΓöÇΓöÇΓû║ find McpServerConfig by serverId
+       Γöé           server found?
+       Γöé               YES ΓöÇΓöÇΓû║ POST server.url
+       Γöé                           { method:"tools/call",
+       Γöé                             params:{ name, arguments } }
+       Γöé                       ΓùäΓöÇΓöÇ result
+       Γöé               NO  ΓöÇΓöÇΓû║ Error: server not found
+       Γöé
+       ΓööΓöÇ NO (built-in) ΓöÇΓöÇΓû║ executeBuiltInTool(name, args, mode)
+               Γöé
+               Γö£ΓöÇ canExecute(tool.capabilities, mode)?
+               Γöé   NO  ΓöÇΓöÇΓû║ "Blocked: requires [caps] in [mode] mode"
+               Γöé
+               ΓööΓöÇ YES ΓöÇΓöÇΓû║ switch(name)
+                           Γöé
+                           Γö£ΓöÇ js-sandbox       new Function(code)()
+                           Γöé                   capture console.log output
+                           Γöé
+                           Γö£ΓöÇ web-search       supabase.functions.invoke
+                           Γöé                   "tool-execute" { tool:"web-search" }
+                           Γöé
+                           Γö£ΓöÇ url-fetch        supabase.functions.invoke
+                           Γöé                   "tool-execute" { tool:"url-fetch" }
+                           Γöé
+                           Γö£ΓöÇ current-time     new Date() ΓåÆ ISO/local/unix/tz
+                           Γöé
+                           Γö£ΓöÇ calculator       recursive descent parser
+                           Γöé                   +  -  *  /  %  ^  ()
+                           Γöé                   NO eval / new Function
+                           Γöé
+                           Γö£ΓöÇ json-transform   format | minify | keys
+                           Γöé                   count | query (dot-path)
+                           Γöé
+                           Γö£ΓöÇ random-generator uuid | password | number
+                           Γöé                   color | lorem | name | email
+                           Γöé
+                           Γö£ΓöÇ base64           btoa() / atob()
+                           Γöé
+                           Γö£ΓöÇ hash             crypto.subtle.digest
+                           Γöé                   SHA-256 | SHA-1 | SHA-384
+                           Γöé
+                           Γö£ΓöÇ file-read        supabase.from("user_files")
+                           Γöé                   list | read | search
+                           Γöé
+                           Γö£ΓöÇ rag-cloud        supabase.from("documents")
+                           Γöé                   textSearch fts | ilike fallback
+                           Γöé                   search | add | list
+                           Γöé
+                           Γö£ΓöÇ rag-local        stub ΓåÆ "not available yet"
+                           Γöé
+                           ΓööΓöÇ unknown          Error: Unknown tool
 ```
 
 ```mermaid
@@ -577,7 +579,7 @@ flowchart TD
     HASH["hash\ncrypto.subtle.digest"]
     FILE["file-read\nsupabase.from(user_files)"]
     RAG_C["rag-cloud\nsupabase.from(documents)\nfull-text search"]
-    RAG_L["rag-local\nstub — not implemented"]
+    RAG_L["rag-local\nstub ΓÇö not implemented"]
     UNKNOWN["Error: Unknown tool"]
 
     START --> PARSE --> CHECK_MCP
@@ -596,69 +598,69 @@ flowchart TD
 
 ```
   Frontend (React)                  openaiServer.ts  :1234
-  ─────────────────                 ──────────────────────────────────────────
-  localEngine.ts    ─── HTTP ──►    GET  /v1/status
-  useLocalEngine                         → { loaded, model, modelName, backend }
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ                 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  localEngine.ts    ΓöÇΓöÇΓöÇ HTTP ΓöÇΓöÇΓû║    GET  /v1/status
+  useLocalEngine                         ΓåÆ { loaded, model, modelName, backend }
   useServerState
                                     GET  /v1/models
-                                         → { data:[{ id, object, owned_by }] }
+                                         ΓåÆ { data:[{ id, object, owned_by }] }
 
                                     GET  /v1/models/available
-                                         → scans modelsDir recursively for .gguf
-                                         → { data:[{ id, path, size_bytes }] }
+                                         ΓåÆ scans modelsDir recursively for .gguf
+                                         ΓåÆ { data:[{ id, path, size_bytes }] }
 
                                     GET  /v1/backends
-                                         → reads backend-manifest.json
-                                         → reads display-data.json (locale "en")
-                                         → { data:[{ name, displayName, version,
+                                         ΓåÆ reads backend-manifest.json
+                                         ΓåÆ reads display-data.json (locale "en")
+                                         ΓåÆ { data:[{ name, displayName, version,
                                                       gpu, cpu[], active }] }
 
                                     GET  /v1/config
-                                         → { models_dir }
+                                         ΓåÆ { models_dir }
 
                                     POST /v1/config
-                                         ← { models_dir?, custom_endpoints? }
-                                         → updates modelsDir
-                                         → dynamically registers Express routes
+                                         ΓåÉ { models_dir?, custom_endpoints? }
+                                         ΓåÆ updates modelsDir
+                                         ΓåÆ dynamically registers Express routes
 
-  useHardwareInfo   ─── HTTP ──►    GET  /v1/hardware
-                                         → { cpu, memory, gpus[], platform, arch }
+  useHardwareInfo   ΓöÇΓöÇΓöÇ HTTP ΓöÇΓöÇΓû║    GET  /v1/hardware
+                                         ΓåÆ { cpu, memory, gpus[], platform, arch }
 
                                     GET  /v1/hardware/usage
-                                         → { cpuPercent, ramUsed, ramTotal }
+                                         ΓåÆ { cpuPercent, ramUsed, ramTotal }
 
-  ModelConfigPanel  ─── HTTP ──►    POST /v1/load
-  ModelsPage                             ← { model_path, config:{ n_ctx,
+  ModelConfigPanel  ΓöÇΓöÇΓöÇ HTTP ΓöÇΓöÇΓû║    POST /v1/load
+  ModelsPage                             ΓåÉ { model_path, config:{ n_ctx,
                                                 n_gpu_layers, n_parallel } }
-                                         → unloads current → loads new
-                                         → { ok, model }
+                                         ΓåÆ unloads current ΓåÆ loads new
+                                         ΓåÆ { ok, model }
 
                                     POST /v1/unload
-                                         → { ok }
+                                         ΓåÆ { ok }
 
                                     POST /v1/stop
-                                         → aborts generation → { ok }
+                                         ΓåÆ aborts generation ΓåÆ { ok }
 
-  useChatLogic      ─── HTTP ──►    POST /v1/chat/completions
-  localEngine.ts                         ← { model, messages, stream,
+  useChatLogic      ΓöÇΓöÇΓöÇ HTTP ΓöÇΓöÇΓû║    POST /v1/chat/completions
+  localEngine.ts                         ΓåÉ { model, messages, stream,
                                               temperature, top_p, max_tokens,
                                               stop, tools? }
-                                         streaming  → text/event-stream SSE
+                                         streaming  ΓåÆ text/event-stream SSE
                                                        data: {delta.content}
                                                        data: [DONE]
-                                         non-stream → ChatCompletionResponse
+                                         non-stream ΓåÆ ChatCompletionResponse
 
-  useDownloadManager ── HTTP ──►    POST /v1/download
-                                         ← { url, dest_dir, filename }
+  useDownloadManager ΓöÇΓöÇ HTTP ΓöÇΓöÇΓû║    POST /v1/download
+                                         ΓåÉ { url, dest_dir, filename }
                                     GET  /v1/download/progress?filename=...
-                                         → { progress, bytes_received,
+                                         ΓåÆ { progress, bytes_received,
                                               total_bytes, speed_bps, done }
-  ─────────────────                 ──────────────────────────────────────────
-                                         ▼
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ                 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+                                         Γû╝
                                     LlamaEngine  (llamaEngine.ts)
-                                         loadModel · predict · predictFull
-                                         unload · stopGenerating · countTokens
-                                         ▼
+                                         loadModel ┬╖ predict ┬╖ predictFull
+                                         unload ┬╖ stopGenerating ┬╖ countTokens
+                                         Γû╝
                                     llm_engine[_cuda12|_cuda|_vulkan|].node
                                     liblmstudio_bindings[...].node
 ```
@@ -688,7 +690,7 @@ graph LR
     end
 
     subgraph ENGINE["LlamaEngine"]
-        LE["llamaEngine.ts\nloadModel · predict\npredictFull · unload\ncountTokens · stopGenerating"]
+        LE["llamaEngine.ts\nloadModel ┬╖ predict\npredictFull ┬╖ unload\ncountTokens ┬╖ stopGenerating"]
     end
 
     subgraph BACKENDS["Native Bindings"]
@@ -709,44 +711,44 @@ graph LR
 
 ```
   User clicks "Get" on ModelDetail
-       │
-       ▼
+       Γöé
+       Γû╝
   fetchHfGgufFiles(model.slug)
        GET https://huggingface.co/api/models/{slug}?full=true
-       ◄── siblings[] filtered by .gguf extension
+       ΓùäΓöÇΓöÇ siblings[] filtered by .gguf extension
        User selects variant from dropdown
-       │
-       ▼
+       Γöé
+       Γû╝
   onStartDownload({ id, modelId, filename, displayName, url, destDir })
-       │
-       ▼
+       Γöé
+       Γû╝
   useDownloadManager.startDownload(item)
-       ├─ deduplicate (skip if already downloading/done)
-       ├─ add { status:"queued" } to state
-       └─ persist to localStorage
-              │
-              ▼
-       ┌─ try POST localhost:1234/v1/download
-       │       { url, dest_dir, filename }
-       │
-       │   success (engine handles it)
-       │   └─ poll GET /v1/download/progress?filename=...  every 800ms
-       │           ◄── { progress, bytes_received, total_bytes, speed_bps, done }
-       │           updateItem(progress) → re-render DownloadManager UI
-       │
-       └─ fail (engine offline)
-           └─ browser-side fetch(url) with ReadableStream
+       Γö£ΓöÇ deduplicate (skip if already downloading/done)
+       Γö£ΓöÇ add { status:"queued" } to state
+       ΓööΓöÇ persist to localStorage
+              Γöé
+              Γû╝
+       ΓöîΓöÇ try POST localhost:1234/v1/download
+       Γöé       { url, dest_dir, filename }
+       Γöé
+       Γöé   success (engine handles it)
+       Γöé   ΓööΓöÇ poll GET /v1/download/progress?filename=...  every 800ms
+       Γöé           ΓùäΓöÇΓöÇ { progress, bytes_received, total_bytes, speed_bps, done }
+       Γöé           updateItem(progress) ΓåÆ re-render DownloadManager UI
+       Γöé
+       ΓööΓöÇ fail (engine offline)
+           ΓööΓöÇ browser-side fetch(url) with ReadableStream
                    loop reader.read():
                        bytesReceived += chunk.byteLength
                        every 0.5s: calc speedBps
                        updateItem({ progress, bytesReceived, speedBps })
                    on complete:
                        POST /v1/config { rescan:true }
-       │
-       ▼
+       Γöé
+       Γû╝
   updateItem({ status:"done", progress:100, finishedAt })
   persist to localStorage
-  DownloadManager UI shows ✓ Completed HH:MM:SS
+  DownloadManager UI shows Γ£ô Completed HH:MM:SS
 ```
 
 ```mermaid
@@ -793,53 +795,53 @@ sequenceDiagram
 ### 4.8 Supabase Database Schema (ERD)
 
 ```
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  auth.users  (managed by Supabase Auth)                                  │
-  │  id (uuid PK)  ·  email                                                  │
-  └──────┬───────────────────────────────────────────────────────────────────┘
-         │ 1:1                │ 1:N              │ 1:N
-         ▼                    ▼                  ▼
-  ┌─────────────┐   ┌──────────────────┐   ┌──────────────────────────────┐
-  │  profiles   │   │   api_keys       │   │   api_providers              │
-  │─────────────│   │──────────────────│   │──────────────────────────────│
-  │ id          │   │ id               │   │ id                           │
-  │ user_id FK  │   │ user_id FK       │   │ user_id FK                   │
-  │ display_name│   │ name             │   │ name                         │
-  │ avatar_url  │   │ key_hash  ◄─SHA256   │ base_url                     │
-  │ created_at  │   │ key_prefix       │   │ api_key_encrypted  ◄─XOR     │
-  │ updated_at  │   │ is_active        │   │ provider_type                │
-  └─────────────┘   │ rate_limit_rpm   │   │ enabled                      │
-                    │ allowed_models[] │   └──────────────────────────────┘
-                    │ last_used_at     │
-                    │ expires_at       │
-                    └────────┬─────────┘
-                             │ 1:N
-                             ▼
-                    ┌──────────────────────────────────────────────────────┐
-                    │  api_usage_logs                                      │
-                    │──────────────────────────────────────────────────────│
-                    │ id · user_id FK · api_key_id FK                      │
-                    │ model · provider · endpoint · status_code            │
-                    │ tokens_input · tokens_output · latency_ms            │
-                    │ error_message · request_ip · created_at              │
-                    └──────────────────────────────────────────────────────┘
+  ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+  Γöé  auth.users  (managed by Supabase Auth)                                  Γöé
+  Γöé  id (uuid PK)  ┬╖  email                                                  Γöé
+  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+         Γöé 1:1                Γöé 1:N              Γöé 1:N
+         Γû╝                    Γû╝                  Γû╝
+  ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+  Γöé  profiles   Γöé   Γöé   api_keys       Γöé   Γöé   api_providers              Γöé
+  ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé   ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé   ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé
+  Γöé id          Γöé   Γöé id               Γöé   Γöé id                           Γöé
+  Γöé user_id FK  Γöé   Γöé user_id FK       Γöé   Γöé user_id FK                   Γöé
+  Γöé display_nameΓöé   Γöé name             Γöé   Γöé name                         Γöé
+  Γöé avatar_url  Γöé   Γöé key_hash  ΓùäΓöÇSHA256   Γöé base_url                     Γöé
+  Γöé created_at  Γöé   Γöé key_prefix       Γöé   Γöé api_key_encrypted  ΓùäΓöÇXOR     Γöé
+  Γöé updated_at  Γöé   Γöé is_active        Γöé   Γöé provider_type                Γöé
+  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ   Γöé rate_limit_rpm   Γöé   Γöé enabled                      Γöé
+                    Γöé allowed_models[] Γöé   ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                    Γöé last_used_at     Γöé
+                    Γöé expires_at       Γöé
+                    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                             Γöé 1:N
+                             Γû╝
+                    ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+                    Γöé  api_usage_logs                                      Γöé
+                    ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé
+                    Γöé id ┬╖ user_id FK ┬╖ api_key_id FK                      Γöé
+                    Γöé model ┬╖ provider ┬╖ endpoint ┬╖ status_code            Γöé
+                    Γöé tokens_input ┬╖ tokens_output ┬╖ latency_ms            Γöé
+                    Γöé error_message ┬╖ request_ip ┬╖ created_at              Γöé
+                    ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
 
-  ┌──────────────────────────┐   ┌──────────────────────────────────────────┐
-  │  documents  (Cloud RAG)  │   │  mcp_servers                             │
-  │──────────────────────────│   │──────────────────────────────────────────│
-  │ id · user_id FK          │   │ id · user_id FK                          │
-  │ title · content (text)   │   │ name · url · headers (jsonb)             │
-  │ tags (text[]) · source   │   │ enabled · status                         │
-  │ fts (tsvector)  ◄─index  │   │ created_at · updated_at                  │
-  │ created_at · updated_at  │   └──────────────────────────────────────────┘
-  └──────────────────────────┘
+  ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+  Γöé  documents  (Cloud RAG)  Γöé   Γöé  mcp_servers                             Γöé
+  ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé   ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé
+  Γöé id ┬╖ user_id FK          Γöé   Γöé id ┬╖ user_id FK                          Γöé
+  Γöé title ┬╖ content (text)   Γöé   Γöé name ┬╖ url ┬╖ headers (jsonb)             Γöé
+  Γöé tags (text[]) ┬╖ source   Γöé   Γöé enabled ┬╖ status                         Γöé
+  Γöé fts (tsvector)  ΓùäΓöÇindex  Γöé   Γöé created_at ┬╖ updated_at                  Γöé
+  Γöé created_at ┬╖ updated_at  Γöé   ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
 
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │  user_files                                                              │
-  │──────────────────────────────────────────────────────────────────────────│
-  │ id · user_id FK · filename · content (text) · content_type              │
-  │ size_bytes · created_at                                                  │
-  └──────────────────────────────────────────────────────────────────────────┘
+  ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+  Γöé  user_files                                                              Γöé
+  ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé
+  Γöé id ┬╖ user_id FK ┬╖ filename ┬╖ content (text) ┬╖ content_type              Γöé
+  Γöé size_bytes ┬╖ created_at                                                  Γöé
+  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
 ```
 
 ```mermaid
@@ -951,47 +953,47 @@ erDiagram
 
 ```
   App mounts
-       │
-       ▼
+       Γöé
+       Γû╝
   useAuth()
-       ├─ supabase.auth.onAuthStateChange(subscribe)
-       └─ supabase.auth.getSession()
-              │
-              ├─ session exists ──► setUser(session.user)
-              │                     setLoading(false)
-              │
-              └─ no session ──► setUser(null)
+       Γö£ΓöÇ supabase.auth.onAuthStateChange(subscribe)
+       ΓööΓöÇ supabase.auth.getSession()
+              Γöé
+              Γö£ΓöÇ session exists ΓöÇΓöÇΓû║ setUser(session.user)
+              Γöé                     setLoading(false)
+              Γöé
+              ΓööΓöÇ no session ΓöÇΓöÇΓû║ setUser(null)
                                 setLoading(false)
-       │
-       ▼
+       Γöé
+       Γû╝
   Index.tsx receives { user, loading }
-       │
-       ├─ loading === true
-       │   └─ render spinner
-       │
-       ├─ user === null
-       │   └─ render <AuthPage>
-       │           │
-       │           ▼
-       │       Supabase Auth UI
-       │       signInWithPassword / signUp / OAuth
-       │           │
-       │           ▼
-       │       onAuthStateChange fires
-       │       setUser(session.user)
-       │       Index re-renders → full app
-       │
-       └─ user present
-           ├─ render full app shell
-           ├─ fetchDbProviders(user.id)
-           │   SELECT api_providers WHERE user_id = ?
-           │   decryptApiKey(api_key_encrypted)  ← XOR decode
-           │   setProviders(dbProviders)
-           │
-           └─ on signOut:
+       Γöé
+       Γö£ΓöÇ loading === true
+       Γöé   ΓööΓöÇ render spinner
+       Γöé
+       Γö£ΓöÇ user === null
+       Γöé   ΓööΓöÇ render <AuthPage>
+       Γöé           Γöé
+       Γöé           Γû╝
+       Γöé       Supabase Auth UI
+       Γöé       signInWithPassword / signUp / OAuth
+       Γöé           Γöé
+       Γöé           Γû╝
+       Γöé       onAuthStateChange fires
+       Γöé       setUser(session.user)
+       Γöé       Index re-renders ΓåÆ full app
+       Γöé
+       ΓööΓöÇ user present
+           Γö£ΓöÇ render full app shell
+           Γö£ΓöÇ fetchDbProviders(user.id)
+           Γöé   SELECT api_providers WHERE user_id = ?
+           Γöé   decryptApiKey(api_key_encrypted)  ΓåÉ XOR decode
+           Γöé   setProviders(dbProviders)
+           Γöé
+           ΓööΓöÇ on signOut:
                supabase.auth.signOut()
-               onAuthStateChange → null
-               setUser(null) → AuthPage
+               onAuthStateChange ΓåÆ null
+               setUser(null) ΓåÆ AuthPage
 ```
 
 ```mermaid
@@ -1026,8 +1028,8 @@ sequenceDiagram
 
     note over Browser,DB: On signOut
     Browser->>Supa: supabase.auth.signOut()
-    Supa-->>Hook: onAuthStateChange → null
-    Hook->>Index: user = null → AuthPage
+    Supa-->>Hook: onAuthStateChange ΓåÆ null
+    Hook->>Index: user = null ΓåÆ AuthPage
 ```
 
 ---
@@ -1036,7 +1038,7 @@ sequenceDiagram
 
 ```
   Settings Tab          Write Target              Engine Sync
-  ─────────────────     ──────────────────────    ──────────────────────────
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ     ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   PathsTab              localStorage              POST /v1/config
     modelsDir           app:settings:paths        { models_dir }
     downloadsDir
@@ -1059,11 +1061,11 @@ sequenceDiagram
   AdvancedTab           localStorage
     executionMode       ai-server-user-role
 
-  RuntimeTab            ─── read only ───         GET /v1/backends
+  RuntimeTab            ΓöÇΓöÇΓöÇ read only ΓöÇΓöÇΓöÇ         GET /v1/backends
     backends browser                              reads backend-manifest.json
                                                   reads display-data.json
 
-  HardwareTab           ─── read only ───         GET /v1/hardware
+  HardwareTab           ΓöÇΓöÇΓöÇ read only ΓöÇΓöÇΓöÇ         GET /v1/hardware
     CPU/GPU/RAM                                   GET /v1/hardware/usage
                                                   (poll every 3s)
 
@@ -1130,49 +1132,49 @@ flowchart LR
 ### 4.11 MCP Integration Flow
 
 ```
-  ── SETUP (McpServersTab) ──────────────────────────────────────────────────
+  ΓöÇΓöÇ SETUP (McpServersTab) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   User adds MCP server { name, url, headers }
-       │
-       ├─ saveMcpServerToDb(server, userId)
-       │   INSERT INTO mcp_servers
-       │
-       └─ saveMcpServers([...])  → localStorage "ai-server-mcp-servers"
+       Γöé
+       Γö£ΓöÇ saveMcpServerToDb(server, userId)
+       Γöé   INSERT INTO mcp_servers
+       Γöé
+       ΓööΓöÇ saveMcpServers([...])  ΓåÆ localStorage "ai-server-mcp-servers"
 
   User clicks "Discover Tools"
-       │
-       └─ discoverMcpTools(server)
+       Γöé
+       ΓööΓöÇ discoverMcpTools(server)
                POST server.url
                { jsonrpc:"2.0", method:"tools/list", id:1 }
-               ◄── { result:{ tools:[{ name, description, inputSchema }] } }
+               ΓùäΓöÇΓöÇ { result:{ tools:[{ name, description, inputSchema }] } }
                store tool list on server config
 
-  ── CHAT SEND ──────────────────────────────────────────────────────────────
+  ΓöÇΓöÇ CHAT SEND ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   useChatLogic.sendMessage()
-       │
-       ├─ loadMcpServers() from localStorage
-       ├─ for each enabled server:
-       │   discoverMcpTools(server) → mcpToolDefs[]
-       └─ merge mcpToolDefs + builtInToolDefs → ToolDefinition[]
+       Γöé
+       Γö£ΓöÇ loadMcpServers() from localStorage
+       Γö£ΓöÇ for each enabled server:
+       Γöé   discoverMcpTools(server) ΓåÆ mcpToolDefs[]
+       ΓööΓöÇ merge mcpToolDefs + builtInToolDefs ΓåÆ ToolDefinition[]
               send to model as tools:[...]
 
-  ── TOOL CALL RESPONSE ─────────────────────────────────────────────────────
+  ΓöÇΓöÇ TOOL CALL RESPONSE ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
   model returns tool_calls[{ name:"rag_search", arguments:{query:"..."} }]
-       │
-       └─ executeToolCall("rag_search", args, mcpToolDefs, mcpServers, mode)
-               find "rag_search" in mcpToolDefs → serverId = "rag-server"
+       Γöé
+       ΓööΓöÇ executeToolCall("rag_search", args, mcpToolDefs, mcpServers, mode)
+               find "rag_search" in mcpToolDefs ΓåÆ serverId = "rag-server"
                find McpServerConfig by id
-               │
-               └─ executeMcpToolCall(server, "rag_search", { query })
+               Γöé
+               ΓööΓöÇ executeMcpToolCall(server, "rag_search", { query })
                        POST server.url
                        { jsonrpc:"2.0", method:"tools/call",
                          params:{ name:"rag_search",
                                   arguments:{ query:"..." } },
                          id:1 }
-                       ◄── { result: "search result text" }
-               return result string → append as tool message → re-send
+                       ΓùäΓöÇΓöÇ { result: "search result text" }
+               return result string ΓåÆ append as tool message ΓåÆ re-send
 ```
 
 ```mermaid
@@ -1213,43 +1215,43 @@ sequenceDiagram
 
 ```
   Engine process starts
-       │
-       ▼
+       Γöé
+       Γû╝
   backendLoader.ts  scanBackends()
        scan extensions/backends/*/backend-manifest.json
        build list of { manifest, dir } pairs
-       │
-       ▼
+       Γöé
+       Γû╝
   Detect hardware capabilities
-       │
-       ├─ NVIDIA GPU + CUDA 12 driver ≥ 12040?
-       │   YES ──► llama.cpp-win-x86_64-nvidia-cuda12-avx2  v2.8.0
-       │               llm_engine_cuda12.node
-       │               liblmstudio_bindings_cuda12.node
-       │               CUDA targets: 7.5 / 8.0 / 8.9 / 9.0 / 10.0 / 12.0
-       │
-       ├─ NVIDIA GPU + CUDA 11?
-       │   YES ──► llama.cpp-win-x86_64-nvidia-cuda-avx2  v2.7.1
-       │               llm_engine_cuda.node
-       │               liblmstudio_bindings_cuda.node
-       │
-       ├─ Any GPU + Vulkan support?
-       │   YES ──► llama.cpp-win-x86_64-vulkan-avx2  v2.7.1
-       │               llm_engine_vulkan.node
-       │               liblmstudio_bindings_vulkan.node
-       │
-       └─ CPU only (AVX2)
-           ──► llama.cpp-win-x86_64-avx2  v2.7.1
+       Γöé
+       Γö£ΓöÇ NVIDIA GPU + CUDA 12 driver ΓëÑ 12040?
+       Γöé   YES ΓöÇΓöÇΓû║ llama.cpp-win-x86_64-nvidia-cuda12-avx2  v2.8.0
+       Γöé               llm_engine_cuda12.node
+       Γöé               liblmstudio_bindings_cuda12.node
+       Γöé               CUDA targets: 7.5 / 8.0 / 8.9 / 9.0 / 10.0 / 12.0
+       Γöé
+       Γö£ΓöÇ NVIDIA GPU + CUDA 11?
+       Γöé   YES ΓöÇΓöÇΓû║ llama.cpp-win-x86_64-nvidia-cuda-avx2  v2.7.1
+       Γöé               llm_engine_cuda.node
+       Γöé               liblmstudio_bindings_cuda.node
+       Γöé
+       Γö£ΓöÇ Any GPU + Vulkan support?
+       Γöé   YES ΓöÇΓöÇΓû║ llama.cpp-win-x86_64-vulkan-avx2  v2.7.1
+       Γöé               llm_engine_vulkan.node
+       Γöé               liblmstudio_bindings_vulkan.node
+       Γöé
+       ΓööΓöÇ CPU only (AVX2)
+           ΓöÇΓöÇΓû║ llama.cpp-win-x86_64-avx2  v2.7.1
                    llm_engine.node
                    liblmstudio_bindings.node
-       │
-       ▼
+       Γöé
+       Γû╝
   require(selected .node binding)
   new LLMEngine(LLM_TYPE=1)
   engine.start()
   engine.setErrorHandler(...)
-       │
-       ▼
+       Γöé
+       Γû╝
   LlamaEngine ready
   createOpenAIServer(engine, modelName, backendName)
   app.listen(1234)
@@ -1259,7 +1261,7 @@ sequenceDiagram
 flowchart TD
     START(["Engine process starts"])
     SCAN["backendLoader.ts\nscanBackends()\nread all backend-manifest.json"]
-    DETECT["Detect hardware\nCPU extensions · GPU vendor\nCUDA version · Vulkan support"]
+    DETECT["Detect hardware\nCPU extensions ┬╖ GPU vendor\nCUDA version ┬╖ Vulkan support"]
 
     CHECK_CUDA12{"CUDA 12\navailable?"}
     CHECK_CUDA11{"CUDA 11\navailable?"}
@@ -1288,54 +1290,54 @@ flowchart TD
 ### 4.13 State Management Map
 
 ```
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │  Index.tsx  (top-level React state)                                     │
-  │                                                                         │
-  │  currentPage: Page          userRole: UserRole                          │
-  │  tools: ToolItem[]          providers: ApiProvider[]                    │
-  │  selectedModelName: string  tokenCount: number                          │
-  │  showSettings / showDownloads / showModelConfig: boolean                │
-  │                                                                         │
-  │  Persisted to localStorage:                                             │
-  │    providers → "ai-server-providers"                                    │
-  │    userRole  → "ai-server-user-role"                                    │
-  │    chatSessionsOpen → "ai-server-chat-sessions-open"                    │
-  │  Synced to Supabase:                                                    │
-  │    providers → api_providers table                                      │
-  └──────────────────────────────┬──────────────────────────────────────────┘
-                                 │ passes props down
-         ┌───────────────────────┼──────────────────────────┐
-         ▼                       ▼                          ▼
-  ┌─────────────────┐   ┌────────────────────┐   ┌──────────────────────┐
-  │  useChatLogic   │   │  useServerState    │   │  useDownloadManager  │
-  │─────────────────│   │────────────────────│   │──────────────────────│
-  │ sessions[]      │   │ isRunning          │   │ downloads[]          │
-  │ activeSessionId │   │ wsStatus           │   │ abortRefs Map        │
-  │ messages[]      │   │ logs[] (max 500)   │   │                      │
-  │ isStreaming      │   │ loadedModels[]     │   │ Persisted:           │
-  │ executionMode   │   │ uptime / latency   │   │ localStorage         │
-  │ abortController │   │                    │   │ "ai-server:downloads"│
-  │                 │   │ polls /v1/status   │   └──────────────────────┘
-  │ Persisted:      │   │ every 3s           │
-  │ localStorage    │   └────────────────────┘
-  │ sessions+msgs   │
-  └─────────────────┘
-         │
-         ▼
-  ┌─────────────────┐   ┌────────────────────┐   ┌──────────────────────┐
-  │  useLocalEngine │   │  useHardwareInfo   │   │  useAuth             │
-  │─────────────────│   │────────────────────│   │──────────────────────│
-  │ status:         │   │ hardware:          │   │ user: User | null    │
-  │  available      │   │  CpuInfo           │   │ session: Session     │
-  │  loaded         │   │  MemoryInfo        │   │ loading: boolean     │
-  │  model          │   │  GpuInfo[]         │   │                      │
-  │                 │   │ usage:             │   │ supabase.auth        │
-  │ polls /v1/status│   │  cpuPercent        │   │ onAuthStateChange    │
-  │ every 5s        │   │  ramUsed/Total     │   │ getSession()         │
-  └─────────────────┘   │                    │   └──────────────────────┘
-                        │ polls /v1/hardware │
-                        │ /usage every 3s    │
-                        └────────────────────┘
+  ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+  Γöé  Index.tsx  (top-level React state)                                     Γöé
+  Γöé                                                                         Γöé
+  Γöé  currentPage: Page          userRole: UserRole                          Γöé
+  Γöé  tools: ToolItem[]          providers: ApiProvider[]                    Γöé
+  Γöé  selectedModelName: string  tokenCount: number                          Γöé
+  Γöé  showSettings / showDownloads / showModelConfig: boolean                Γöé
+  Γöé                                                                         Γöé
+  Γöé  Persisted to localStorage:                                             Γöé
+  Γöé    providers ΓåÆ "ai-server-providers"                                    Γöé
+  Γöé    userRole  ΓåÆ "ai-server-user-role"                                    Γöé
+  Γöé    chatSessionsOpen ΓåÆ "ai-server-chat-sessions-open"                    Γöé
+  Γöé  Synced to Supabase:                                                    Γöé
+  Γöé    providers ΓåÆ api_providers table                                      Γöé
+  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö¼ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                                 Γöé passes props down
+         ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓö╝ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+         Γû╝                       Γû╝                          Γû╝
+  ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+  Γöé  useChatLogic   Γöé   Γöé  useServerState    Γöé   Γöé  useDownloadManager  Γöé
+  ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé   ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé   ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé
+  Γöé sessions[]      Γöé   Γöé isRunning          Γöé   Γöé downloads[]          Γöé
+  Γöé activeSessionId Γöé   Γöé wsStatus           Γöé   Γöé abortRefs Map        Γöé
+  Γöé messages[]      Γöé   Γöé logs[] (max 500)   Γöé   Γöé                      Γöé
+  Γöé isStreaming      Γöé   Γöé loadedModels[]     Γöé   Γöé Persisted:           Γöé
+  Γöé executionMode   Γöé   Γöé uptime / latency   Γöé   Γöé localStorage         Γöé
+  Γöé abortController Γöé   Γöé                    Γöé   Γöé "ai-server:downloads"Γöé
+  Γöé                 Γöé   Γöé polls /v1/status   Γöé   ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+  Γöé Persisted:      Γöé   Γöé every 3s           Γöé
+  Γöé localStorage    Γöé   ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+  Γöé sessions+msgs   Γöé
+  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+         Γöé
+         Γû╝
+  ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ   ΓöîΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÉ
+  Γöé  useLocalEngine Γöé   Γöé  useHardwareInfo   Γöé   Γöé  useAuth             Γöé
+  ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé   ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé   ΓöéΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöé
+  Γöé status:         Γöé   Γöé hardware:          Γöé   Γöé user: User | null    Γöé
+  Γöé  available      Γöé   Γöé  CpuInfo           Γöé   Γöé session: Session     Γöé
+  Γöé  loaded         Γöé   Γöé  MemoryInfo        Γöé   Γöé loading: boolean     Γöé
+  Γöé  model          Γöé   Γöé  GpuInfo[]         Γöé   Γöé                      Γöé
+  Γöé                 Γöé   Γöé usage:             Γöé   Γöé supabase.auth        Γöé
+  Γöé polls /v1/statusΓöé   Γöé  cpuPercent        Γöé   Γöé onAuthStateChange    Γöé
+  Γöé every 5s        Γöé   Γöé  ramUsed/Total     Γöé   Γöé getSession()         Γöé
+  ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ   Γöé                    Γöé   ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
+                        Γöé polls /v1/hardware Γöé
+                        Γöé /usage every 3s    Γöé
+                        ΓööΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÿ
 ```
 
 ```mermaid
@@ -1403,47 +1405,47 @@ graph TD
 
 ```
   External Client (curl / Python SDK / JS SDK)
-       │
-       │  POST https://{project}.supabase.co/functions/v1/api-proxy/v1/chat/completions
-       │  Authorization: Bearer sk-ais-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-       │
-       ▼
+       Γöé
+       Γöé  POST https://{project}.supabase.co/functions/v1/api-proxy/v1/chat/completions
+       Γöé  Authorization: Bearer sk-ais-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+       Γöé
+       Γû╝
   Supabase Edge Function: api-proxy
-       │
-       ├─ extract Bearer token from Authorization header
-       ├─ SHA-256 hash the token
-       ├─ SELECT * FROM api_keys WHERE key_hash = ?
-       │
-       ├─ key not found?  ──► 401 Unauthorized
-       ├─ is_active = false?  ──► 401 Unauthorized
-       │
-       ├─ rate_limit_rpm > 0?
-       │   count requests in last 60s for this key
-       │   exceeded?  ──► 429 Too Many Requests
-       │
-       ├─ SELECT * FROM api_providers WHERE user_id = key.user_id
-       │   decrypt api_key_encrypted  (XOR with static key)
-       │
-       ├─ forward request to provider.base_url
-       │   with real API key in Authorization header
-       │   ◄── response (streaming SSE or JSON)
-       │
-       ├─ forward response to client
-       │
-       └─ INSERT INTO api_usage_logs {
+       Γöé
+       Γö£ΓöÇ extract Bearer token from Authorization header
+       Γö£ΓöÇ SHA-256 hash the token
+       Γö£ΓöÇ SELECT * FROM api_keys WHERE key_hash = ?
+       Γöé
+       Γö£ΓöÇ key not found?  ΓöÇΓöÇΓû║ 401 Unauthorized
+       Γö£ΓöÇ is_active = false?  ΓöÇΓöÇΓû║ 401 Unauthorized
+       Γöé
+       Γö£ΓöÇ rate_limit_rpm > 0?
+       Γöé   count requests in last 60s for this key
+       Γöé   exceeded?  ΓöÇΓöÇΓû║ 429 Too Many Requests
+       Γöé
+       Γö£ΓöÇ SELECT * FROM api_providers WHERE user_id = key.user_id
+       Γöé   decrypt api_key_encrypted  (XOR with static key)
+       Γöé
+       Γö£ΓöÇ forward request to provider.base_url
+       Γöé   with real API key in Authorization header
+       Γöé   ΓùäΓöÇΓöÇ response (streaming SSE or JSON)
+       Γöé
+       Γö£ΓöÇ forward response to client
+       Γöé
+       ΓööΓöÇ INSERT INTO api_usage_logs {
                user_id, api_key_id, model, provider, endpoint,
                status_code, tokens_input, tokens_output,
                latency_ms, error_message, request_ip
           }
           UPDATE api_keys SET last_used_at = now()
 
-  ─────────────────────────────────────────────────────────────────────
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   ApiGatewayPage (frontend) reads:
-    api_keys        → ApiKeysTab   (list, create, toggle, delete)
-    api_usage_logs  → UsageTab     (by model aggregation)
-                    → LogsTab      (request log table)
-                    → StatsRow     (totals, avg latency, error rate)
-  ─────────────────────────────────────────────────────────────────────
+    api_keys        ΓåÆ ApiKeysTab   (list, create, toggle, delete)
+    api_usage_logs  ΓåÆ UsageTab     (by model aggregation)
+                    ΓåÆ LogsTab      (request log table)
+                    ΓåÆ StatsRow     (totals, avg latency, error rate)
+  ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 ```
 
 ```mermaid
@@ -1479,40 +1481,61 @@ sequenceDiagram
 
 ## 3. Repository Structure
 
+See [STRUCTURE.md](./STRUCTURE.md) for the full annotated directory tree.
+
 ```
 /
-├── electron/
-│   ├── main.ts              # Electron main process — window creation, IPC, engine spawn
-│   └── preload.ts           # Context bridge: exposes electron.minimize/maximize/close
-├── extensions/
-│   ├── engine/
-│   │   ├── llamaEngine.ts   # LlamaEngine class — wraps llm_engine.node binding
-│   │   ├── openaiServer.ts  # Express OpenAI-compatible HTTP server
-│   │   ├── backendLoader.ts # Scans extensions/backends/, loads best backend
-│   │   ├── hardwareInfo.ts  # CPU/GPU/RAM detection
-│   │   └── types.ts         # Shared TypeScript types for engine layer
-│   ├── daemon.ts            # Standalone daemon process — auto-starts MCP plugins
-│   ├── backends/            # Pre-built llama.cpp backend binaries (4 variants)
-│   └── mcp/
-│       ├── rag/             # Local RAG MCP server (port 4001)
-│       └── sandbox/         # Local code sandbox MCP server (port 4002)
-├── src/
-│   ├── main.tsx             # React entry point
-│   ├── App.tsx              # Root component — router, providers
-│   ├── index.css            # Global styles
-│   ├── pages/               # Top-level page components
-│   ├── components/          # Reusable UI components
-│   ├── hooks/               # Custom React hooks
-│   ├── lib/                 # Business logic, API clients
-│   └── integrations/
-│       └── supabase/        # Supabase client + generated types
-├── supabase/
-│   └── migrations/          # SQL migration files
-├── dist/                    # Vite build output
-├── electron-dist/           # Electron packaged output
-├── package.json
-├── vite.config.ts
-└── components.json          # shadcn/ui config
+Γö£ΓöÇΓöÇ electron/                    # Electron main process + preload (IPC, engine spawn, port events)
+Γö£ΓöÇΓöÇ src/
+Γöé   Γö£ΓöÇΓöÇ App.tsx                  # Root: QueryClientProvider, Router, Toaster
+Γöé   Γö£ΓöÇΓöÇ aistclaw-routes.tsx      # Aistclaw sub-router
+Γöé   Γö£ΓöÇΓöÇ pages/                   # Top-level page components (one per route)
+Γöé   Γöé   Γö£ΓöÇΓöÇ Index.tsx            # App shell: layout, sidebar, modals, status bar, auth gate
+Γöé   Γöé   Γö£ΓöÇΓöÇ ChatPage.tsx         # Chat interface (useChatLogic + ChatUI)
+Γöé   Γöé   Γö£ΓöÇΓöÇ ModelsPage.tsx       # Local + API model management (load/unload/filter)
+Γöé   Γöé   Γö£ΓöÇΓöÇ DiscoverPage.tsx     # HuggingFace model browser + download trigger
+Γöé   Γöé   Γö£ΓöÇΓöÇ ServerPage.tsx       # Engine monitor (status, logs, endpoints)
+Γöé   Γöé   Γö£ΓöÇΓöÇ ApiGatewayPage.tsx   # API key management + usage dashboard
+Γöé   Γöé   Γö£ΓöÇΓöÇ SettingsPage.tsx     # Settings modal (10 tab panels)
+Γöé   Γöé   Γö£ΓöÇΓöÇ VoicePage.tsx        # STT/TTS workflows
+Γöé   Γöé   Γö£ΓöÇΓöÇ MediaPage.tsx        # Image/video generation
+Γöé   Γöé   Γö£ΓöÇΓöÇ ClawUiPage.tsx       # Aistclaw enterprise UI host
+Γöé   Γöé   ΓööΓöÇΓöÇ aistclaw/            # Aistclaw-specific pages
+Γöé   Γö£ΓöÇΓöÇ components/              # Reusable UI components
+Γöé   Γöé   Γö£ΓöÇΓöÇ IconSidebar.tsx      # Navigation sidebar (vertical/horizontal, role-filtered)
+Γöé   Γöé   Γö£ΓöÇΓöÇ WindowTitleBar.tsx   # Custom Electron titlebar + theme toggle
+Γöé   Γöé   Γö£ΓöÇΓöÇ ModelConfigPanel.tsx # Slide-in model config drawer
+Γöé   Γöé   Γö£ΓöÇΓöÇ DownloadManager.tsx  # Download queue UI
+Γöé   Γöé   Γö£ΓöÇΓöÇ chat/                # Chat UI components
+Γöé   Γöé   Γö£ΓöÇΓöÇ server/              # Server monitor components
+Γöé   Γöé   Γö£ΓöÇΓöÇ settings/            # Settings tab panels (10 tabs)
+Γöé   Γöé   Γö£ΓöÇΓöÇ discover/            # Model discovery components
+Γöé   Γöé   Γö£ΓöÇΓöÇ api-gateway/         # API gateway components
+Γöé   Γöé   Γö£ΓöÇΓöÇ voice/               # Voice studio components
+Γöé   Γöé   ΓööΓöÇΓöÇ ui/                  # shadcn/ui primitives
+Γöé   Γö£ΓöÇΓöÇ stores/                  # Zustand state stores (persisted to localStorage)
+Γöé   Γöé   Γö£ΓöÇΓöÇ chatStore.ts         # Chat tabs, messages, generation state
+Γöé   Γöé   ΓööΓöÇΓöÇ settingsStore.ts     # Appearance, chat, advanced, about + side-effects
+Γöé   Γö£ΓöÇΓöÇ hooks/                   # Custom React hooks
+Γöé   Γö£ΓöÇΓöÇ lib/                     # Business logic, API clients, tool execution
+Γöé   Γö£ΓöÇΓöÇ types/                   # Shared TypeScript types
+Γöé   Γö£ΓöÇΓöÇ constants/               # App constants
+Γöé   Γö£ΓöÇΓöÇ i18n/                    # Internationalization
+Γöé   Γö£ΓöÇΓöÇ api/                     # API integration layers
+Γöé   Γö£ΓöÇΓöÇ integrations/
+Γöé   Γöé   ΓööΓöÇΓöÇ supabase/            # Supabase client
+Γöé   ΓööΓöÇΓöÇ backend/                 # Go backend source (engine, aistclaw, server, migrations)
+Γö£ΓöÇΓöÇ extensions/
+Γöé   Γö£ΓöÇΓöÇ backend/                 # Compiled aistclaw.exe
+Γöé   ΓööΓöÇΓöÇ backends/                # Pre-built llama.cpp binaries (CPU AVX2, NVIDIA CUDA)
+Γö£ΓöÇΓöÇ data/                        # Runtime JSON data files (backend-local persistence)
+Γö£ΓöÇΓöÇ supabase/
+Γöé   ΓööΓöÇΓöÇ functions/               # Edge functions (api-proxy, mcp-proxy, tool-execute)
+Γö£ΓöÇΓöÇ dist/                        # Vite build output
+Γö£ΓöÇΓöÇ electron-dist/               # Compiled Electron main process
+Γö£ΓöÇΓöÇ package.json
+Γö£ΓöÇΓöÇ vite.config.ts               # Vite config + path aliases (@/* and @aistclaw/*)
+ΓööΓöÇΓöÇ components.json              # shadcn/ui config
 ```
 
 ---
@@ -1527,17 +1550,20 @@ Root component. Sets up:
 - `QueryClientProvider` (TanStack Query)
 - `TooltipProvider`
 - `Toaster` + `Sonner` (toast notifications)
-- `BrowserRouter` with two routes: `/` → `<Index>`, `*` → `<NotFound>`
+- `BrowserRouter` with routes:
+  - `/` ΓåÆ redirect to `/chat`
+  - `/aistclaw/*` ΓåÆ `<ClawUiPage>` (Aistclaw enterprise UI)
+  - `/*` ΓåÆ `<Index>` (main app shell)
 
 ### `src/pages/Index.tsx`
 The main shell component. Manages all top-level state:
 - **Auth gate**: renders `<AuthPage>` if no Supabase user
 - **Page routing**: `currentPage` state drives which page renders (`chat | discover | models | server | settings | api`)
 - **Role system**: `userRole` (`user | power-user | developer`) controls which pages are accessible
-- **Tool state**: `tools: ToolItem[]` — list of enabled/disabled built-in tools
-- **Provider state**: `providers: ApiProvider[]` — cloud API providers, synced to Supabase DB
-- **Download manager**: `useDownloadManager()` — active downloads, passed to `DiscoverPage`
-- **Engine status**: `useLocalEngine(5000)` — polls engine every 5s
+- **Tool state**: `tools: ToolItem[]` ΓÇö list of enabled/disabled built-in tools
+- **Provider state**: `providers: ApiProvider[]` ΓÇö cloud API providers, synced to Supabase DB
+- **Download manager**: `useDownloadManager()` ΓÇö active downloads, passed to `DiscoverPage`
+- **Engine status**: `useLocalEngine(5000)` ΓÇö polls engine every 5s
 - **Model config panel**: slide-in drawer for sampling params, shown when a model is selected in chat
 - **Settings modal**: full-screen overlay wrapping `<SettingsPage>`
 - **Downloads modal**: overlay wrapping `<DownloadManager>`
@@ -1549,7 +1575,7 @@ The main shell component. Manages all top-level state:
 ## 6. Electron Shell
 
 ### `electron/main.ts`
-- Creates a `BrowserWindow` (frameless, 1280×800, dark background)
+- Creates a `BrowserWindow` (frameless, 1280├ù800, dark background)
 - Loads `dist/index.html` in production or `http://localhost:5173` in dev
 - Registers IPC handlers: `minimize`, `maximize`, `close`, `open-path`
 - Spawns the engine process (`extensions/engine/`) as a child process
@@ -1572,7 +1598,7 @@ window.electron = {
 
 The engine runs as a separate Node.js process, not inside the Electron renderer. It exposes an HTTP server on `http://localhost:1234`.
 
-### `extensions/engine/llamaEngine.ts` — `LlamaEngine` class
+### `extensions/engine/llamaEngine.ts` ΓÇö `LlamaEngine` class
 
 Wraps the raw `llm_engine.node` native binding.
 
@@ -1595,7 +1621,7 @@ Wraps the raw `llm_engine.node` native binding.
 
 **Default load config**: `n_ctx=4096`, `n_parallel=1`, `n_gpu_layers=0`
 
-### `extensions/engine/openaiServer.ts` — HTTP Server
+### `extensions/engine/openaiServer.ts` ΓÇö HTTP Server
 
 Creates an Express app with full OpenAI wire-format compatibility.
 
@@ -1609,7 +1635,7 @@ Creates an Express app with full OpenAI wire-format compatibility.
 | POST | `/v1/config` | Update `models_dir` and/or register `custom_endpoints` dynamically |
 | GET | `/v1/config` | Returns current `models_dir` |
 | GET | `/v1/backends` | Lists all scanned backends with display info from `display-data.json` |
-| POST | `/v1/chat/completions` | Chat completion — streaming (SSE) and non-streaming |
+| POST | `/v1/chat/completions` | Chat completion ΓÇö streaming (SSE) and non-streaming |
 | POST | `/v1/load` | Load a model by absolute path with optional config |
 | POST | `/v1/unload` | Unload current model |
 | POST | `/v1/stop` | Abort current generation |
@@ -1626,21 +1652,21 @@ Creates an Express app with full OpenAI wire-format compatibility.
 
 Shared TypeScript interfaces:
 
-- `BackendManifest` — backend-manifest.json schema (name, version, engine, platform, cpu, gpu, domains, target_libraries)
-- `LoadModelConfig` — `n_ctx`, `n_parallel`, `n_gpu_layers`, `use_mmap`, `use_mlock`, `seed`
-- `PredictParams` — `temperature`, `top_p`, `top_k`, `repeat_penalty`, `max_tokens`, `stop`, `stream`
-- `ModelInfo` — `path`, `name`, `loaded`, `backend`, `config`
-- `ChatMessage` — `role: "system"|"user"|"assistant"`, `content`
-- `ChatCompletionRequest` / `ChatCompletionResponse` / `ChatCompletionChunk` — OpenAI wire format
+- `BackendManifest` ΓÇö backend-manifest.json schema (name, version, engine, platform, cpu, gpu, domains, target_libraries)
+- `LoadModelConfig` ΓÇö `n_ctx`, `n_parallel`, `n_gpu_layers`, `use_mmap`, `use_mlock`, `seed`
+- `PredictParams` ΓÇö `temperature`, `top_p`, `top_k`, `repeat_penalty`, `max_tokens`, `stop`, `stream`
+- `ModelInfo` ΓÇö `path`, `name`, `loaded`, `backend`, `config`
+- `ChatMessage` ΓÇö `role: "system"|"user"|"assistant"`, `content`
+- `ChatCompletionRequest` / `ChatCompletionResponse` / `ChatCompletionChunk` ΓÇö OpenAI wire format
 
-### `src/lib/localEngine.ts` — Frontend Engine Client
+### `src/lib/localEngine.ts` ΓÇö Frontend Engine Client
 
 Frontend-side client that talks to the engine HTTP server.
 
 | Function | Description |
 |---|---|
-| `getEngineStatus()` | GET `/v1/status` → `{ available, loaded, model }` |
-| `getEngineModels()` | GET `/v1/models` → string[] |
+| `getEngineStatus()` | GET `/v1/status` ΓåÆ `{ available, loaded, model }` |
+| `getEngineModels()` | GET `/v1/models` ΓåÆ string[] |
 | `loadModel(path, options)` | POST `/v1/load` |
 | `unloadModel()` | POST `/v1/unload` |
 | `syncModelsDir(dir)` | POST `/v1/config { models_dir }` |
@@ -1662,29 +1688,29 @@ Types: `CpuInfo`, `MemoryInfo`, `GpuInfo`, `HardwareInfo`, `ResourceUsage`.
 ## 8. Backend Extensions
 
 Located in `extensions/backends/`. Each backend is a directory containing:
-- `backend-manifest.json` — machine-readable metadata
-- `display-data.json` — human-readable name/description per locale
+- `backend-manifest.json` ΓÇö machine-readable metadata
+- `display-data.json` ΓÇö human-readable name/description per locale
 - Native `.dll` and `.node` files
 
 ### Available Backends (Windows x86_64)
 
 | Backend Name | Version | GPU | CUDA Targets | Notes |
 |---|---|---|---|---|
-| `llama.cpp-win-x86_64-avx2` | 2.7.1 | CPU only | — | AVX2 instruction set |
-| `llama.cpp-win-x86_64-avx2` | 1.101.0 | CPU only | — | Older stable version |
-| `llama.cpp-win-x86_64-nvidia-cuda-avx2` | 2.7.1 | NVIDIA CUDA 11 | — | Requires `win-llama-cuda-vendor-v2` |
-| `llama.cpp-win-x86_64-nvidia-cuda-avx2` | 1.101.0 | NVIDIA CUDA 11 | — | Older CUDA 11 version |
-| `llama.cpp-win-x86_64-nvidia-cuda-avx2` | 1.102.0 | NVIDIA CUDA 11 | — | |
+| `llama.cpp-win-x86_64-avx2` | 2.7.1 | CPU only | ΓÇö | AVX2 instruction set |
+| `llama.cpp-win-x86_64-avx2` | 1.101.0 | CPU only | ΓÇö | Older stable version |
+| `llama.cpp-win-x86_64-nvidia-cuda-avx2` | 2.7.1 | NVIDIA CUDA 11 | ΓÇö | Requires `win-llama-cuda-vendor-v2` |
+| `llama.cpp-win-x86_64-nvidia-cuda-avx2` | 1.101.0 | NVIDIA CUDA 11 | ΓÇö | Older CUDA 11 version |
+| `llama.cpp-win-x86_64-nvidia-cuda-avx2` | 1.102.0 | NVIDIA CUDA 11 | ΓÇö | |
 | `llama.cpp-win-x86_64-nvidia-cuda12-avx2` | 2.8.0 | NVIDIA CUDA 12 | 7.5, 8.0, 8.9, 9.0, 10.0, 12.0 | Min driver 12040 |
-| `llama.cpp-win-x86_64-vulkan-avx2` | 2.7.1 | Vulkan | — | Cross-vendor GPU |
+| `llama.cpp-win-x86_64-vulkan-avx2` | 2.7.1 | Vulkan | ΓÇö | Cross-vendor GPU |
 
 All backends support `gguf` model format and both `llm` and `embedding` domains.
 
 **Manifest version**: 4. **Minimum LM Studio version**: 0.4.0+15.
 
 **Target libraries per backend**:
-- `llm_engine[_cuda|_cuda12|_vulkan].node` — inference engine binding
-- `liblmstudio_bindings[_cuda|_cuda12|_vulkan].node` — LM Studio binding layer
+- `llm_engine[_cuda|_cuda12|_vulkan].node` ΓÇö inference engine binding
+- `liblmstudio_bindings[_cuda|_cuda12|_vulkan].node` ΓÇö LM Studio binding layer
 
 ### `extensions/engine/backendLoader.ts`
 
@@ -1700,7 +1726,7 @@ A standalone Node.js process (separate from the engine) that:
 1. Scans `extensions/mcp/` for subdirectories containing `manifest.json`
 2. Spawns each MCP plugin as a child process via `node manifest.entry`
 3. Handles plugin crashes gracefully
-4. Exposes `GET /plugins` on port **4000** — returns list of running plugins (id, name, type, url, capabilities, tools)
+4. Exposes `GET /plugins` on port **4000** ΓÇö returns list of running plugins (id, name, type, url, capabilities, tools)
 5. Kills all child processes on `SIGINT`
 
 **Plugin manifest schema**:
@@ -1715,23 +1741,23 @@ A standalone Node.js process (separate from the engine) that:
 }
 ```
 
-### `extensions/mcp/rag/` — Local RAG Server (port 4001)
+### `extensions/mcp/rag/` ΓÇö Local RAG Server (port 4001)
 
 Minimal HTTP MCP server. Implements JSON-RPC 2.0 over HTTP POST.
 
 **Tools**:
-- `rag_search` — semantic document search (currently returns simulated result; Qdrant + embeddings integration pending)
-- `rag_store` — store document in local vector DB (simulated)
+- `rag_search` ΓÇö semantic document search (currently returns simulated result; Qdrant + embeddings integration pending)
+- `rag_store` ΓÇö store document in local vector DB (simulated)
 
 **Manifest capabilities**: `["local:rag", "local:db"]`
 
-### `extensions/mcp/sandbox/` — Local Code Sandbox (port 4002)
+### `extensions/mcp/sandbox/` ΓÇö Local Code Sandbox (port 4002)
 
 HTTP MCP server for code execution.
 
 **Tools**:
-- `run_js` — executes JavaScript via `new Function()` (note: unsafe in production, intended for demo)
-- `run_python` — simulated Python execution (not yet implemented)
+- `run_js` ΓÇö executes JavaScript via `new Function()` (note: unsafe in production, intended for demo)
+- `run_python` ΓÇö simulated Python execution (not yet implemented)
 
 **Manifest capabilities**: `["local:compute", "local:exec"]`
 
@@ -1741,38 +1767,41 @@ HTTP MCP server for code execution.
 
 ### Page Routing
 
-All pages render inside `src/pages/Index.tsx`. Navigation is controlled by `currentPage` state, not URL routing. The `IconSidebar` drives page changes.
+Navigation is URL-based via React Router v6. The `IconSidebar` drives page changes by calling `navigate(getAppPagePath(page))`. Route constants are defined in `src/lib/app-routes.ts`.
 
 **Pages and access by role**:
 
-| Page | Route Key | User | Power User | Developer |
+| Page | Route | User | Power User | Developer |
 |---|---|---|---|---|
-| Chat | `chat` | ✓ | ✓ | ✓ |
-| Discover | `discover` | ✓ | ✓ | ✓ |
-| Models | `models` | — | ✓ | ✓ |
-| Server | `server` | — | ✓ | ✓ |
-| API Gateway | `api` | — | ✓ | ✓ |
-| Settings | modal | ✓ | ✓ | ✓ |
+| Chat | `/chat` | Γ£ô | Γ£ô | Γ£ô |
+| AistClaw | `/aistclaw/*` | ΓÇö | Γ£ô | Γ£ô |
+| Voice Studio | `/voice` | ΓÇö | Γ£ô | Γ£ô |
+| Media Studio | `/media` | ΓÇö | Γ£ô | Γ£ô |
+| Models | `/models` | ΓÇö | Γ£ô | Γ£ô |
+| Discover | `/discover` | ΓÇö | Γ£ô | Γ£ô |
+| API Gateway | `/api` | ΓÇö | Γ£ô | Γ£ô |
+| Server | `/server` | ΓÇö | Γ£ô | Γ£ô |
+| Settings | modal | Γ£ô | Γ£ô | Γ£ô |
 
 ### `src/pages/ChatPage.tsx`
 
 Main chat interface. Receives props from `Index.tsx`:
-- `tools`, `onToggleTool`, `onAddTool` — tool management
-- `providers` — cloud API providers
-- `newChatTrigger` — incremented to start a new session
-- `sessionsPanelOpen` — controls sessions sidebar visibility
-- `onModelSelect`, `onOpenModelConfig`, `onEjectModel` — model config panel integration
-- `onTokenCountChange` — reports token count to status bar
+- `tools`, `onToggleTool`, `onAddTool` ΓÇö tool management
+- `providers` ΓÇö cloud API providers
+- `newChatTrigger` ΓÇö incremented to start a new session
+- `sessionsPanelOpen` ΓÇö controls sessions sidebar visibility
+- `onModelSelect`, `onOpenModelConfig`, `onEjectModel` ΓÇö model config panel integration
+- `onTokenCountChange` ΓÇö reports token count to status bar
 
 ### `src/pages/ServerPage.tsx`
 
 Server monitoring dashboard. Uses `useServerState(serverPort)` hook. Renders:
-- `ServerHeader` — port input, start/stop toggle, server URL display
-- `WebSocketPanel` — connection status, uptime, latency, message count
-- `LoadedModelsPanel` — currently loaded models from `/v1/status`
-- `EndpointsPanel` — endpoint list with test buttons
-- `DevLogs` — scrollable log viewer with filter/search/pause/clear
-- `ServerStats` — right sidebar with request count, model count, error/warn counts
+- `ServerHeader` ΓÇö port input, start/stop toggle, server URL display
+- `WebSocketPanel` ΓÇö connection status, uptime, latency, message count
+- `LoadedModelsPanel` ΓÇö currently loaded models from `/v1/status`
+- `EndpointsPanel` ΓÇö endpoint list with test buttons
+- `DevLogs` ΓÇö scrollable log viewer with filter/search/pause/clear
+- `ServerStats` ΓÇö right sidebar with request count, model count, error/warn counts
 
 ### `src/pages/SettingsPage.tsx`
 
@@ -1784,9 +1813,22 @@ Settings modal with sidebar navigation. Two tab groups:
 
 ### `src/pages/ModelsPage.tsx`
 
-Local model management. Fetches from engine:
+Local + API model management. Fetches from engine:
 1. `GET /v1/models` — currently loaded models
 2. `GET /v1/models/available` — all `.gguf` files on disk
+
+Also loads saved API model preferences from `loadProviderModelPrefs()` and resolves provider display names from `listBackendProviders()`.
+
+Features:
+- **Display filter**: All / LLMs / Image / STT / TTS / Video / Embedding
+- **Source filter**: All / Local / API / Cloud (coming soon)
+- **Unified table**: local models and saved API models in one continuous list
+- **Model details**: parsed from filename — arch (qwen3, llama3, gemma2, mistral, deepseek-r1, phi3, etc.), params, quant, capabilities (Vision, Tools, Reasoning, Code, Chat)
+- **Actions**: load / unload / delete (local), settings → ModelConfigPanel (both)
+- **Load by path**: manual `.gguf` path input
+- **Open folder**: calls `window.electron.openPath(dir)` or shows toast
+- Calls `syncModelsDir()` on each refresh to push the configured models path to the engine
+2. `GET /v1/models/available` ΓÇö all `.gguf` files on disk
 
 Features: kind filter (All/LLMs/Embedding), load/unload buttons, manual path input, open folder button, refresh. Calls `syncModelsDir()` on each refresh to push the configured models path to the engine.
 
@@ -1803,8 +1845,8 @@ Two-column layout: `DiscoverFilters` + `ModelList` on left, `ModelDetail` on rig
 ### `src/pages/ApiGatewayPage.tsx`
 
 API key management and usage analytics. Fetches from Supabase:
-- `api_keys` table — user's API keys
-- `api_usage_logs` table — last 100 request logs
+- `api_keys` table ΓÇö user's API keys
+- `api_usage_logs` table ΓÇö last 100 request logs
 
 Four tabs: API Keys, Usage, Request Logs, Documentation.
 
@@ -1845,7 +1887,7 @@ Configure the local engine's HTTP server settings (port, CORS, auth token). Disp
 Configure file system paths: models directory, downloads directory. Persisted to `localStorage` under `app:settings:paths`. The models path is synced to the engine via `POST /v1/config { models_dir }`.
 
 ### `src/components/settings/RuntimeTab.tsx`
-Backends browser. Fetches `GET /v1/backends` from the engine and displays all available backends with their GPU type, CPU extensions, version, and active status. No config POST — read-only display.
+Backends browser. Fetches `GET /v1/backends` from the engine and displays all available backends with their GPU type, CPU extensions, version, and active status. No config POST ΓÇö read-only display.
 
 ### `src/components/settings/HardwareTab.tsx`
 Hardware information display. Uses `useHardwareInfo()` hook. Shows CPU name/cores/speed/extensions, RAM total/used/free, GPU name/VRAM/vendor/CUDA/Vulkan support, platform/arch. Live usage bar updates every 3s.
@@ -1874,13 +1916,13 @@ The core chat hook. Manages:
 - **Model selection**: local engine or cloud provider + model
 - **Tool execution loop**: detects `tool_calls` in assistant response, executes each tool via `executeToolCall()`, appends `tool` role messages, re-sends to model
 - **Streaming**: uses `sendChatCompletionStreaming()` for cloud providers, `streamChatCompletion()` for local engine
-- **Execution mode**: `offline | hybrid | full` — controls which tools are allowed
+- **Execution mode**: `offline | hybrid | full` ΓÇö controls which tools are allowed
 - **Token counting**: tracks approximate token usage
 - **Abort**: `AbortController` per request
 
 **Tool execution flow**:
 1. Send messages + tool definitions to model
-2. If response has `tool_calls` → execute each via `executeToolCall()`
+2. If response has `tool_calls` ΓåÆ execute each via `executeToolCall()`
 3. Append tool results as `{ role: "tool", tool_call_id, content }` messages
 4. Re-send full conversation to model
 5. Repeat until no more tool calls or max iterations reached
@@ -1944,17 +1986,17 @@ Chat-specific types: `ChatSession`, `Message`, `ToolCallDisplay`.
 
 ### `src/components/server/useServerState.ts`
 
-The central hook for `ServerPage`. Polls `GET /v1/status` every **3 seconds** (HTTP polling — the engine has no WebSocket endpoint).
+The central hook for `ServerPage`. Polls `GET /v1/status` every **3 seconds** (HTTP polling ΓÇö the engine has no WebSocket endpoint).
 
 **State managed**:
-- `isRunning` — user toggle (does not actually start/stop the engine process)
-- `wsStatus: ConnectionStatus` — `"connected" | "disconnected" | "connecting"` — reflects HTTP poll result
-- `logs: LogEntry[]` — capped at 500 entries
-- `loadedModels: FetchedModel[]` — from `/v1/status`
-- `uptime` — increments every second while `isRunning`
-- `latency` — round-trip time of last poll in ms
-- `requestCount` — incremented on each endpoint test
-- `endpointTestResult` — last test result `{ path, status, time }`
+- `isRunning` ΓÇö user toggle (does not actually start/stop the engine process)
+- `wsStatus: ConnectionStatus` ΓÇö `"connected" | "disconnected" | "connecting"` ΓÇö reflects HTTP poll result
+- `logs: LogEntry[]` ΓÇö capped at 500 entries
+- `loadedModels: FetchedModel[]` ΓÇö from `/v1/status`
+- `uptime` ΓÇö increments every second while `isRunning`
+- `latency` ΓÇö round-trip time of last poll in ms
+- `requestCount` ΓÇö incremented on each endpoint test
+- `endpointTestResult` ΓÇö last test result `{ path, status, time }`
 
 **Key methods**: `testEndpoint(method, path)`, `toggleServer()`, `fetchModels()`, `addLog(level, source, message)`
 
@@ -2001,11 +2043,11 @@ type LogEntry = { id, timestamp, level, source, message }
 
 ## 14. Models Page
 
-`src/pages/ModelsPage.tsx` — see [Frontend Pages](#9-frontend-pages).
+`src/pages/ModelsPage.tsx` ΓÇö see [Frontend Pages](#9-frontend-pages).
 
 Key behaviors:
 - On load: calls `syncModelsDir()` to push configured path to engine, then fetches loaded + available models
-- `isEmbedding(id)` — detects embedding models by id substring (`embed`, `bge`, `e5-`, `minilm`)
+- `isEmbedding(id)` ΓÇö detects embedding models by id substring (`embed`, `bge`, `e5-`, `minilm`)
 - Load by path: manual `.gguf` path input, calls `POST /v1/load`
 - Unload: calls `POST /v1/unload`
 - Open folder: calls `window.electron.openPath(dir)` or shows toast with path
@@ -2014,7 +2056,7 @@ Key behaviors:
 
 ## 15. Discover Page
 
-### Data Layer — `src/pages/discover/discoverData.ts`
+### Data Layer ΓÇö `src/pages/discover/discoverData.ts`
 
 Static catalog of 8 models used as fallback when HF API is unavailable:
 
@@ -2024,8 +2066,8 @@ Static catalog of 8 models used as fallback when HF API is unavailable:
 | Llama 3.3 8B Instruct | Meta | 8B | local | llm |
 | Mistral 7B Instruct v0.3 | Mistral AI | 7B | local | llm |
 | Phi-4 Mini Instruct | Microsoft | 3.8B | local | llm |
-| GPT-4o | OpenAI | — | api | llm |
-| Claude 3.5 Sonnet | Anthropic | — | api | llm |
+| GPT-4o | OpenAI | ΓÇö | api | llm |
+| Claude 3.5 Sonnet | Anthropic | ΓÇö | api | llm |
 | Gemma 3 4B Instruct | Google | 4B | cloud | llm |
 | BGE M3 | BAAI | 568M | local | embedding |
 
@@ -2044,7 +2086,7 @@ Animated list of model cards. Each card shows: name, source badge, description, 
 ### `src/components/discover/ModelDetail.tsx`
 
 Right panel detail view. On model select:
-1. Calls `fetchHfGgufFiles(model.slug)` — fetches real GGUF file list from HF API
+1. Calls `fetchHfGgufFiles(model.slug)` ΓÇö fetches real GGUF file list from HF API
 2. Shows file selector dropdown with real filenames and sizes
 3. Falls back to static `variants` if HF fetch returns nothing
 4. Download button calls `onStartDownload()` with HF direct download URL
@@ -2055,7 +2097,7 @@ Right panel detail view. On model select:
 
 ## 16. API Gateway Page
 
-`src/pages/ApiGatewayPage.tsx` — BYOK (Bring Your Own Key) API proxy management.
+`src/pages/ApiGatewayPage.tsx` ΓÇö BYOK (Bring Your Own Key) API proxy management.
 
 ### `src/components/api-gateway/StatsRow.tsx`
 
@@ -2091,7 +2133,7 @@ Auto-generated API documentation showing:
 
 ## 17. Tool System
 
-### Tool Configuration — `src/lib/api.ts`
+### Tool Configuration ΓÇö `src/lib/api.ts`
 
 **`ToolConfig`** type:
 ```ts
@@ -2115,7 +2157,7 @@ Auto-generated API documentation showing:
 - `hybrid`: `local:*` + `net:http` + `cloud:*` allowed
 - `full`: all capabilities allowed
 
-**Persistence**: `localStorage` under `ai-server-tools-config`. Versioned (current version: 6) — on version mismatch, resets to defaults and merges new tools.
+**Persistence**: `localStorage` under `ai-server-tools-config`. Versioned (current version: 6) ΓÇö on version mismatch, resets to defaults and merges new tools.
 
 **`loadToolConfigs()`**: Loads from localStorage, merges new default tools, updates descriptions/schemas from defaults for built-in tools.
 
@@ -2123,9 +2165,9 @@ Auto-generated API documentation showing:
 
 **`canExecute(tool, mode)`**: Returns whether a tool can run in the given execution mode.
 
-### Built-in Tools — `src/lib/builtInTools.ts`
+### Built-in Tools ΓÇö `src/lib/builtInTools.ts`
 
-**`executeBuiltInTool(name, args, mode)`** — dispatches to tool implementations:
+**`executeBuiltInTool(name, args, mode)`** ΓÇö dispatches to tool implementations:
 
 | Tool ID | Layer | Capabilities | Description |
 |---|---|---|---|
@@ -2140,13 +2182,13 @@ Auto-generated API documentation showing:
 | `hash` | local | `local:compute` | SHA-256/SHA-1/SHA-384 via `crypto.subtle` |
 | `file-read` | hybrid | `local:fs`, `cloud:db` | list/read/search user files in Supabase `user_files` table |
 | `rag-cloud` | edge | `cloud:db` | search/add/list documents in Supabase `documents` table (full-text search + fallback ilike) |
-| `rag-local` | local | `local:rag` | Stub — returns "not available yet" message |
+| `rag-local` | local | `local:rag` | Stub ΓÇö returns "not available yet" message |
 
 **Calculator implementation**: Custom recursive descent parser supporting `+`, `-`, `*`, `/`, `%`, `^`, `()`, unary `-`/`+`. No `eval` or `new Function`.
 
 **Execution mode check**: Each tool call checks `_canExecute(tool.capabilities, mode)` before running. Returns a "Blocked" message if not allowed.
 
-### Tool Executor — `src/lib/toolExecutor.ts`
+### Tool Executor ΓÇö `src/lib/toolExecutor.ts`
 
 **`executeToolCall(name, argsString, mcpToolDefs, mcpServers, executionMode)`**
 
@@ -2198,8 +2240,8 @@ Persisted to both `localStorage` (`ai-server-mcp-servers`) and Supabase `mcp_ser
 ### MCP Protocol
 
 Uses JSON-RPC 2.0 over HTTP POST. Two methods:
-- `tools/list` → returns `{ tools: [{ name, description, inputSchema }] }`
-- `tools/call` → `{ params: { name, arguments } }` → returns result
+- `tools/list` ΓåÆ returns `{ tools: [{ name, description, inputSchema }] }`
+- `tools/call` ΓåÆ `{ params: { name, arguments } }` ΓåÆ returns result
 
 ---
 
@@ -2230,8 +2272,8 @@ Manages GGUF model downloads from HuggingFace.
 ```
 
 **Download flow**:
-1. Try `POST /v1/download` on engine — if engine handles it, poll `GET /v1/download/progress?filename=...`
-2. Fallback: browser-side `fetch()` with `ReadableStream` — tracks bytes received, calculates speed every 0.5s
+1. Try `POST /v1/download` on engine ΓÇö if engine handles it, poll `GET /v1/download/progress?filename=...`
+2. Fallback: browser-side `fetch()` with `ReadableStream` ΓÇö tracks bytes received, calculates speed every 0.5s
 3. On completion: `POST /v1/config { rescan: true }` to trigger engine model rescan
 
 **Persistence**: `localStorage` under `ai-server:downloads`. Downloads interrupted by app restart are reset to `error` status.
@@ -2335,7 +2377,7 @@ Modal UI for the download manager. Shows active, completed, and failed downloads
 
 ### Supabase Edge Functions
 
-**`tool-execute`**: Handles `web-search` (DuckDuckGo) and `url-fetch` (HTML → text extraction) tool calls from the frontend. Called by `executeBuiltInTool()` for network-requiring tools.
+**`tool-execute`**: Handles `web-search` (DuckDuckGo) and `url-fetch` (HTML ΓåÆ text extraction) tool calls from the frontend. Called by `executeBuiltInTool()` for network-requiring tools.
 
 **`api-proxy`**: The BYOK API proxy. Validates `sk-ais-` bearer tokens against `api_keys.key_hash`, enforces rate limits, proxies requests to the configured provider, logs to `api_usage_logs`.
 
@@ -2355,19 +2397,25 @@ function useAuth(): { user: User | null, session: Session | null, loading: boole
 
 Sets up `supabase.auth.onAuthStateChange` listener first, then calls `supabase.auth.getSession()` to hydrate initial state. Cleans up subscription on unmount.
 
-Used in `Index.tsx` to gate the entire app — renders `<AuthPage>` if no user.
+Used in `Index.tsx` to gate the entire app ΓÇö renders `<AuthPage>` if no user.
 
 ---
 
 ## 22. State Management & Data Flow
 
-### Local State (React)
+### Zustand Stores (global, persisted to localStorage)
 
-All state lives in React component state and custom hooks. No global state manager (Redux/Zustand/etc.).
+- **`chatStore`** (`src/stores/chatStore.ts`) — chat tabs, messages per tab, active tab, `isGenerating` flag. Cleans up interrupted messages on rehydration.
+- **`settingsStore`** (`src/stores/settingsStore.ts`) — appearance, chat, advanced, about settings. Applies side-effects on change: CSS vars (font size, theme class), engine config sync (`POST /v1/config`), system theme listener.
 
-**Key state locations**:
-- `Index.tsx` — page routing, tools, providers, role, model config panel, downloads
-- `useChatLogic.tsx` — sessions, messages, streaming state, tool execution
+### React Query (server state, auto-refetch on focus)
+
+Providers list, API keys, usage logs, model lists from backend.
+
+### React Local State (ephemeral, in-component)
+
+- `Index.tsx` — providers, model config panel, downloads, offline mode, chat sessions panel
+- `useChatLogic.tsx` — streaming state, tool execution, abort controller
 - `useServerState.ts` — server logs, connection status, loaded models
 - `useDownloadManager.ts` — download queue and progress
 
@@ -2375,13 +2423,13 @@ All state lives in React component state and custom hooks. No global state manag
 
 | Data | Storage |
 |---|---|
-| Chat sessions + messages | `localStorage` |
-| Tool configs | `localStorage` (`ai-server-tools-config`) |
+| Chat sessions + messages | `localStorage` (chatStore) |
+| App settings | `localStorage` (settingsStore) |
+| Tool configs | `localStorage` (`ai-server-tools-config`, versioned v6) |
 | MCP servers | `localStorage` + Supabase `mcp_servers` |
 | API providers | `localStorage` + Supabase `api_providers` |
-| Settings (paths, basics, etc.) | `localStorage` |
 | Downloads queue | `localStorage` (`ai-server:downloads`) |
-| User role | `localStorage` (`ai-server-user-role`) |
+| Provider model prefs | `localStorage` + `data/provider_model_prefs.json` |
 | API keys | Supabase `api_keys` (hash only, never raw) |
 | Usage logs | Supabase `api_usage_logs` |
 | Documents (RAG) | Supabase `documents` |
@@ -2392,29 +2440,29 @@ All state lives in React component state and custom hooks. No global state manag
 
 ```
 User types message
-  → useChatLogic appends user message
-  → Builds ApiMessage[] + ToolDefinition[] (enabled tools)
-  → Sends to provider (local engine or cloud API)
-  → If stream: onToken callbacks update last message content
-  → If tool_calls in response:
-      → executeToolCall() for each call
-      → Appends tool result messages
-      → Re-sends to model
-  → Final assistant message appended to session
-  → Token count updated → propagated to status bar
+  ΓåÆ useChatLogic appends user message
+  ΓåÆ Builds ApiMessage[] + ToolDefinition[] (enabled tools)
+  ΓåÆ Sends to provider (local engine or cloud API)
+  ΓåÆ If stream: onToken callbacks update last message content
+  ΓåÆ If tool_calls in response:
+      ΓåÆ executeToolCall() for each call
+      ΓåÆ Appends tool result messages
+      ΓåÆ Re-sends to model
+  ΓåÆ Final assistant message appended to session
+  ΓåÆ Token count updated ΓåÆ propagated to status bar
 ```
 
 ### Data Flow: Model Download
 
 ```
 User clicks "Get" on DiscoverPage
-  → ModelDetail calls onStartDownload(item)
-  → Index.tsx passes to useDownloadManager.startDownload()
-  → Tries POST /v1/download on engine
-  → Falls back to browser fetch with ReadableStream
-  → Progress updates every ~0.5s
-  → On done: POST /v1/config { rescan: true }
-  → DownloadManager UI shows progress
+  ΓåÆ ModelDetail calls onStartDownload(item)
+  ΓåÆ Index.tsx passes to useDownloadManager.startDownload()
+  ΓåÆ Tries POST /v1/download on engine
+  ΓåÆ Falls back to browser fetch with ReadableStream
+  ΓåÆ Progress updates every ~0.5s
+  ΓåÆ On done: POST /v1/config { rescan: true }
+  ΓåÆ DownloadManager UI shows progress
 ```
 
 ---
@@ -2488,29 +2536,29 @@ All endpoints on `http://localhost:1234`.
 ### Status & Info
 
 ```
-GET  /v1/status              → { loaded, model, modelName, backend }
-GET  /v1/models              → { object: "list", data: [{ id, object, created, owned_by }] }
-GET  /v1/models/available    → { object: "list", data: [{ id, path, size_bytes, object }] }
-GET  /v1/backends            → { object: "list", data: [{ name, displayName, description, version, gpu, gpuMake, cpu, active }] }
-GET  /v1/config              → { models_dir }
-GET  /v1/hardware            → HardwareInfo
-GET  /v1/hardware/usage      → ResourceUsage
+GET  /v1/status              ΓåÆ { loaded, model, modelName, backend }
+GET  /v1/models              ΓåÆ { object: "list", data: [{ id, object, created, owned_by }] }
+GET  /v1/models/available    ΓåÆ { object: "list", data: [{ id, path, size_bytes, object }] }
+GET  /v1/backends            ΓåÆ { object: "list", data: [{ name, displayName, description, version, gpu, gpuMake, cpu, active }] }
+GET  /v1/config              ΓåÆ { models_dir }
+GET  /v1/hardware            ΓåÆ HardwareInfo
+GET  /v1/hardware/usage      ΓåÆ ResourceUsage
 ```
 
 ### Model Management
 
 ```
 POST /v1/load    { model_path, config?: { n_ctx, n_gpu_layers, n_parallel } }
-                 → { ok, model }
-POST /v1/unload  → { ok }
-POST /v1/stop    → { ok }
+                 ΓåÆ { ok, model }
+POST /v1/unload  ΓåÆ { ok }
+POST /v1/stop    ΓåÆ { ok }
 ```
 
 ### Configuration
 
 ```
 POST /v1/config  { models_dir?, custom_endpoints?: [{ method, path, description }] }
-                 → { ok, models_dir }
+                 ΓåÆ { ok, models_dir }
 ```
 
 ### Inference
@@ -2518,15 +2566,15 @@ POST /v1/config  { models_dir?, custom_endpoints?: [{ method, path, description 
 ```
 POST /v1/chat/completions
   Body: { model, messages, temperature?, top_p?, max_tokens?, stream?, stop? }
-  Non-streaming: → ChatCompletionResponse
-  Streaming:     → text/event-stream SSE chunks → [DONE]
+  Non-streaming: ΓåÆ ChatCompletionResponse
+  Streaming:     ΓåÆ text/event-stream SSE chunks ΓåÆ [DONE]
 ```
 
 ### Download (optional engine-side)
 
 ```
 POST /v1/download  { url, dest_dir, filename }
-GET  /v1/download/progress?filename=...  → { progress, bytes_received, total_bytes, speed_bps, done, error }
+GET  /v1/download/progress?filename=...  ΓåÆ { progress, bytes_received, total_bytes, speed_bps, done, error }
 ```
 
 ---

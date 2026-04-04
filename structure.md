@@ -1,448 +1,247 @@
-# AI Server Studio — Project Structure & Architecture
-
-> **Tech Stack**: React 18 + TypeScript · Vite · Tailwind CSS · Framer Motion · Supabase (Auth, DB, Edge Functions) · Lucide Icons
-
----
-
-## Directory Tree
+# Project Structure
 
 ```
 open-studio-main/
-├── index.html                       # SPA entry point
-├── package.json                     # deps & scripts (dev / build / preview)
-├── vite.config.ts                   # Vite config, path alias @/ → src/
-├── tailwind.config.ts               # Design tokens (colors, radii, keyframes)
-├── tsconfig.app.json                # TS paths & strict settings
-├── vitest.config.ts                 # Unit-test runner config
+├── electron/                        # Electron main process
+│   ├── main.ts                      # App entry: spawns engine, daemon, aistclaw; manages BrowserWindow + IPC
+│   └── preload.ts                   # Context bridge → window.electron (minimize/maximize/close, port events)
 │
-├── public/                          # Static assets (favicon, etc.)
+├── src/
+│   ├── App.tsx                      # Root: QueryClientProvider, Router, Toaster
+│   ├── main.tsx                     # React DOM entry point
+│   ├── aistclaw-routes.tsx          # Aistclaw sub-router (enterprise pages)
+│   │
+│   ├── pages/                       # Top-level page components (one per route)
+│   │   ├── Index.tsx                # App shell: layout, sidebar, modals, status bar, auth gate
+│   │   ├── ChatPage.tsx             # Chat interface wrapper (useChatLogic + ChatUI)
+│   │   ├── DiscoverPage.tsx         # HuggingFace model browser + download trigger
+│   │   ├── ModelsPage.tsx           # Local + API model management table (load/unload/filter)
+│   │   ├── ServerPage.tsx           # Engine monitor (status, logs, endpoints, stats)
+│   │   ├── ApiGatewayPage.tsx       # API key management + usage dashboard
+│   │   ├── SettingsPage.tsx         # Settings modal shell (10 tab panels)
+│   │   ├── VoicePage.tsx            # STT/TTS workflows
+│   │   ├── MediaPage.tsx            # Image/video generation
+│   │   ├── AuthPage.tsx             # Login / signup (Supabase Auth)
+│   │   ├── AccountPage.tsx          # User profile management
+│   │   ├── ClawUiPage.tsx           # Aistclaw enterprise UI host
+│   │   ├── NotFound.tsx             # 404
+│   │   ├── aistclaw/                # Aistclaw-specific pages (agents, teams, workflows, etc.)
+│   │   ├── discover/
+│   │   │   └── discoverData.ts      # Static model catalog + filter types + HF fetch utilities
+│   │   └── models/
+│   │       └── modelsData.ts        # LocalModel type + static model data
+│   │
+│   ├── components/
+│   │   ├── IconSidebar.tsx          # Navigation sidebar (vertical/horizontal, role-filtered, resource widget)
+│   │   ├── WindowTitleBar.tsx       # Custom Electron titlebar + theme toggle
+│   │   ├── ModelConfigPanel.tsx     # Slide-in model config drawer (sampling params, engine reload)
+│   │   ├── DownloadManager.tsx      # Download queue UI (progress bars, cancel/retry/remove)
+│   │   ├── KeyboardShortcuts.tsx    # Global keyboard shortcut handler (Ctrl+N/,/J/M/Shift+R/H)
+│   │   ├── NavLink.tsx              # React Router NavLink wrapper with active/pending class support
+│   │   ├── JsonEditorTab.tsx        # JSON editor with syntax highlighting + validation
+│   │   ├── chat/                    # Chat UI components
+│   │   │   ├── useChatLogic.ts      # Core chat hook: sessions, streaming, tool loop, token count
+│   │   │   ├── ChatUI.tsx           # Main chat layout (sessions sidebar + message area + input toolbar)
+│   │   │   ├── MessageBubble.tsx    # Single message renderer (user/assistant/tool/system)
+│   │   │   ├── MessageList.tsx      # Scrollable message container with auto-scroll
+│   │   │   ├── CodeBlock.tsx        # Syntax-highlighted code block with copy button
+│   │   │   ├── SessionsSidebar.tsx  # Chat session list (title, timestamp, message count)
+│   │   │   ├── ModelPicker.tsx      # Model selection dropdown (local + cloud grouped)
+│   │   │   ├── ProviderPicker.tsx   # Provider selection dropdown
+│   │   │   ├── AgentPicker.tsx      # Agent preset selector (system prompt + tool config)
+│   │   │   ├── ToolConfigPanel.tsx  # Tool enable/disable panel (grouped by layer)
+│   │   │   ├── McpServersPanel.tsx  # MCP server tools panel (slide-in)
+│   │   │   └── types.ts             # Chat-specific types: ChatTab, Message, ToolCallDisplay
+│   │   ├── discover/
+│   │   │   ├── DiscoverFilters.tsx  # Search input + kind/capability filter pills + refresh
+│   │   │   ├── ModelList.tsx        # Animated model cards with download button/progress
+│   │   │   └── ModelDetail.tsx      # Right panel: HF file fetch, variant picker, README preview
+│   │   ├── server/
+│   │   │   ├── useServerState.ts    # Server hook: polls /v1/status every 3s, manages logs
+│   │   │   ├── ServerHeader.tsx     # Port input, start/stop button, connection status badge
+│   │   │   ├── WebSocketPanel.tsx   # HTTP polling status (uptime, latency, message count)
+│   │   │   ├── LoadedModelsPanel.tsx# Currently loaded models from /v1/status
+│   │   │   ├── EndpointsPanel.tsx   # Endpoint list with test buttons + custom endpoints
+│   │   │   ├── DevLogs.tsx          # Log viewer (level filter, search, pause, clear, auto-scroll)
+│   │   │   ├── ServerStats.tsx      # Stats sidebar (requests, errors, latency, uptime)
+│   │   │   └── types.ts             # LogEntry, ConnectionStatus, LogLevel types
+│   │   ├── settings/
+│   │   │   ├── ProfileTab.tsx       # Display name, avatar (Supabase profiles table)
+│   │   │   ├── BasicsTab.tsx        # Theme, language, font size, nav position, chat style
+│   │   │   ├── ProvidersTab.tsx     # Cloud API provider CRUD (XOR-encrypted keys)
+│   │   │   ├── McpServersTab.tsx    # MCP server CRUD + tool discovery
+│   │   │   ├── ToolsTab.tsx         # Enable/disable built-in + MCP tools
+│   │   │   ├── ApiTab.tsx           # Local server port, CORS, auth token config
+│   │   │   ├── PathsTab.tsx         # Models dir, downloads dir (synced to engine)
+│   │   │   ├── AdvancedTab.tsx      # GPU, context, debug, experimental features
+│   │   │   ├── RuntimeTab.tsx       # Backend browser (reads backend-manifest.json, read-only)
+│   │   │   ├── HardwareTab.tsx      # CPU/GPU/RAM info via useHardwareInfo (live, 3s poll)
+│   │   │   └── Primitives.tsx       # Shared settings UI primitives (labeled inputs, toggles)
+│   │   ├── api-gateway/
+│   │   │   ├── StatsRow.tsx         # 4-card stats: requests, tokens, latency, error rate
+│   │   │   ├── ApiKeysTab.tsx       # API key lifecycle (create sk-ais- keys, SHA-256 hash, toggle, delete)
+│   │   │   ├── UsageTab.tsx         # Usage aggregated by model, filterable by key
+│   │   │   ├── LogsTab.tsx          # Request log table (status, model, latency, tokens)
+│   │   │   └── DocsTab.tsx          # Auto-generated API docs (Python/JS/cURL examples)
+│   │   ├── gateway/                 # Gateway shared components
+│   │   ├── voice/                   # Voice studio components
+│   │   ├── ui/                      # shadcn/ui primitives (button, dialog, select, etc.)
+│   │   └── aistclaw/                # Aistclaw-specific components
+│   │
+│   ├── stores/                      # Zustand state stores (persisted to localStorage)
+│   │   ├── chatStore.ts             # Chat tabs, messages, active tab, generation state
+│   │   ├── settingsStore.ts         # Appearance, chat, advanced, about settings + side-effects
+│   │   └── aistclaw/                # Aistclaw-specific stores
+│   │
+│   ├── hooks/                       # React hooks
+│   │   ├── useLocalEngine.ts        # Polls engine status every 5s; exposes load/unload
+│   │   ├── useDownloadManager.ts    # GGUF download queue with progress tracking + persistence
+│   │   ├── useAuth.ts               # Supabase auth session (onAuthStateChange + getSession)
+│   │   ├── useHardwareInfo.ts       # CPU/GPU/RAM polling from /v1/hardware
+│   │   ├── useAgentRunner.ts        # Agent execution loop
+│   │   ├── use-mobile.tsx           # Responsive breakpoint hook
+│   │   ├── use-toast.ts             # Toast notification hook
+│   │   └── aistclaw/                # Aistclaw-specific hooks
+│   │
+│   ├── lib/                         # Utilities and API clients
+│   │   ├── api.ts                   # Backend HTTP client (providers, auth, keys, usage, tools, MCP)
+│   │   ├── localEngine.ts           # Local engine client (status, load, unload, config, port)
+│   │   ├── toolExecutor.ts          # Tool execution: parallel (max 4), retry (max 2), timeout (15s), deps
+│   │   ├── builtInTools.ts          # Built-in tool implementations (web-search, url-fetch, kb, sandbox, etc.)
+│   │   ├── mcpOperations.ts         # MCP server CRUD (Supabase) + tool discovery + tool execution
+│   │   ├── providerModelPrefs.ts    # Model preference persistence per provider (localStorage + backend sync)
+│   │   ├── app-routes.ts            # Route constants (STUDIO_PAGE_PATHS) and path helpers
+│   │   ├── crypto.ts                # Crypto utilities (XOR encryption for API keys)
+│   │   ├── utils.ts                 # General utilities (cn, etc.)
+│   │   ├── agent/                   # Agent execution utilities
+│   │   └── aistclaw/                # Aistclaw API client + helpers
+│   │
+│   ├── types/
+│   │   ├── index.ts                 # Shared types: Page, UserRole, ToolItem, ApiProvider
+│   │   └── aistclaw/                # Aistclaw-specific types
+│   │
+│   ├── constants/
+│   │   └── aistclaw/                # Aistclaw constants (AISTCLAW_BASE_PATH, etc.)
+│   │
+│   ├── i18n/
+│   │   └── aistclaw/                # i18n translations for Aistclaw UI
+│   │
+│   ├── api/
+│   │   └── aistclaw/                # Aistclaw API integration layer
+│   │
+│   ├── integrations/
+│   │   └── supabase/
+│   │       └── client.ts            # Supabase client (VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY)
+│   │
+│   └── backend/                     # Go backend source
+│       ├── main.go                  # Engine supervisor entry point
+│       ├── engine/                  # llama.cpp wrapper + hardware detection
+│       ├── aistclaw/                # Enterprise backend (teams, agents, workflows)
+│       ├── server/                  # HTTP route handlers (grouped route modules)
+│       ├── migrations/              # PostgreSQL schema migrations
+│       └── skills/                  # Document processing (PDF, DOCX, XLSX, PPTX)
+│
+├── extensions/
+│   ├── backend/
+│   │   └── aistclaw.exe             # Compiled Aistclaw backend binary
+│   └── backends/                    # Pre-built llama.cpp runtime binaries
+│       ├── llama.cpp-win-x86_64-avx2-*/              # CPU-only builds
+│       └── llama.cpp-win-x86_64-nvidia-cuda-avx2-*/  # NVIDIA CUDA builds
+│
+├── data/                            # Runtime JSON data files (backend-local persistence)
+│   ├── providers.json               # Configured API providers
+│   ├── mcp_servers.json             # MCP server configurations
+│   ├── users.json                   # Local user accounts
+│   ├── auth_sessions.json           # Session tokens
+│   └── provider_model_prefs.json    # Model preferences per provider
 │
 ├── supabase/
-│   ├── config.toml                  # Supabase project config
-│   ├── functions/                   # Deno-based Edge Functions
-│   │   ├── api-proxy/               # Proxies LLM API calls (adds auth header)
-│   │   ├── mcp-proxy/               # Proxies remote MCP server calls
-│   │   ├── tool-execute/            # Server-side tool execution
-│   │   └── hello/                   # Health-check function
-│   └── migrations/                  # 6 SQL migrations (auth, profiles, providers, usage, api_keys, knowledge)
+│   └── functions/
+│       ├── api-proxy/               # OpenAI-compatible API proxy (validates sk-ais- tokens, logs usage)
+│       ├── mcp-proxy/               # MCP server proxy for remote servers
+│       ├── tool-execute/            # web-search (DuckDuckGo) + url-fetch (HTML→text)
+│       └── hello/                   # Health check function
 │
-├── extensions/                      # Local inference and plugin runtimes
-│   ├── backends/                    # Precompiled engine binaries (e.g. llama.cpp for CUDA, AVX2, Vulkan)
-│   ├── frameworks/                  # Additional framework runtimes
-│   └── plugins/                     # Plugin assets (e.g. bundled MCP servers)
+├── public/                          # Static assets (favicon, icons)
+├── dist/                            # Vite production build output
+├── electron-dist/                   # Compiled Electron main process
 │
-├── mcp/                             # MCP server utilities / configs
-│
-└── src/
-    ├── main.tsx                      # ReactDOM.createRoot entry
-    ├── App.tsx                       # Router (BrowserRouter → Index | NotFound)
-    ├── index.css                     # Global CSS + Tailwind directives
-    ├── App.css                       # App-level overrides
-    │
-    ├── pages/                        # Route-level page components
-    │   ├── Index.tsx                 # 🏠 Shell: sidebar + page router + global state
-    │   ├── ChatPage.tsx              # 💬 Thin wrapper (22 lines) → useChatLogic + ChatUI
-    │   ├── SettingsPage.tsx          # ⚙️  Settings panel (tabs: profile, providers, MCP, tools, etc.)
-    │   ├── ModelsPage.tsx            # 🧠 Model browser / download manager
-    │   ├── DiscoverPage.tsx          # 🔍 LLM discovery & community
-    │   ├── ServerPage.tsx            # 🖥️  Local inference server dashboard
-    │   ├── ApiGatewayPage.tsx        # 🔑 API key management & endpoint config
-    │   ├── AccountPage.tsx           # 👤 User account page
-    │   ├── AuthPage.tsx              # 🔐 Sign-in / sign-up page
-    │   └── NotFound.tsx              # 404 fallback
-    │
-    ├── components/
-    │   ├── IconSidebar.tsx           # Main navigation sidebar (icon bar)
-    │   ├── NavLink.tsx               # Sidebar link component
-    │   ├── ModelConfigPanel.tsx      # Right-side panel for model settings (temp, top-p, etc.)
-    │   ├── KeyboardShortcuts.tsx     # Global keyboard shortcut handler
-    │   ├── JsonEditorTab.tsx         # JSON editor for raw config editing
-    │   │
-    │   ├── chat/                     # Extracted chat sub-components
-    │   │   ├── types.ts              # Shared types: Message, AgentMode, ChatTab, ModelDef, ModelSource
-    │   │   ├── useChatLogic.tsx      # ★ All chat state + logic hook (555 lines)
-    │   │   ├── ChatUI.tsx            # ★ Pure render component (380 lines)
-    │   │   ├── CodeBlock.tsx         # Syntax-highlighted code block with copy button (memo)
-    │   │   ├── MessageBubble.tsx     # Chat message renderer: markdown, tool calls, thinking (memo)
-    │   │   └── SessionsSidebar.tsx   # Left sidebar with session list, search, tabs (memo)
-    │   │
-    │   ├── settings/                 # Extracted settings sub-components
-    │   │   ├── Primitives.tsx        # Shared UI: Toggle, InputField, SelectField, ToggleField
-    │   │   ├── ProfileTab.tsx        # Profile, password, usage stats, sign-out
-    │   │   └── ProvidersTab.tsx      # CRUD for API providers (OpenAI, Anthropic, etc.)
-    │   │
-    │   └── ui/                       # shadcn/ui component library (~40+ components)
-    │       ├── button.tsx, dialog.tsx, toast.tsx, toaster.tsx, sonner.tsx, ...
-    │       └── (standard shadcn primitives)
-    │
-    ├── lib/                          # Core business logic
-    │   ├── api.ts                    # 🔧 Central API layer (types, tool configs, built-in tools, MCP, streaming)
-    │   ├── toolExecutor.ts           # ★ Tool dispatch: routes to MCP or built-in tool
-    │   ├── chatLogic.ts             # ★ Hybrid Memory prompt builder (STM + LTM/RAG)
-    │   └── utils.ts                  # Utility (cn() for classnames)
-    │
-    ├── hooks/                        # Custom React hooks
-    │   ├── useAuth.ts                # Supabase auth state (user, session, signOut)
-    │   ├── use-toast.ts              # Toast notification system
-    │   └── use-mobile.tsx            # Responsive breakpoint hook
-    │
-    ├── integrations/supabase/
-    │   ├── client.ts                 # Supabase client instance (@supabase/supabase-js)
-    │   └── types.ts                  # Generated DB types (tables, views, functions)
-    │
-    └── test/
-        ├── setup.ts                  # Vitest setup
-        └── example.test.ts           # Example test
+├── package.json                     # Dependencies + scripts
+├── vite.config.ts                   # Vite config + path aliases (@/* and @aistclaw/*)
+├── tsconfig.json                    # TypeScript project references
+├── tsconfig.app.json                # App TS config
+├── tsconfig.electron.json           # Electron TS config
+├── tsconfig.node.json               # Node TS config
+├── components.json                  # shadcn/ui config
+├── eslint.config.js                 # ESLint rules
+├── .env                             # Supabase + API credentials
+└── .env.local                       # Local overrides (gitignored)
 ```
 
 ---
 
-## Architecture Overview
+## Path Aliases
 
-```
-┌───────────────────────────────────────────────────────────────┐
-│                       Browser (SPA)                           │
-│                                                               │
-│  App.tsx → BrowserRouter → Index.tsx (Shell)                  │
-│  ┌─────────────┐  ┌────────────────────────────────────┐      │
-│  │ IconSidebar  │  │  Active Page                      │      │
-│  │ (nav icons)  │  │  ┌── ChatPage ──────────────────┐ │      │
-│  │              │  │  │ useChatLogic (hook)           │ │      │
-│  │  💬 Chat     │  │  │   ↓                           │ │      │
-│  │  🔍 Discover │  │  │ ChatUI (pure render)          │ │      │
-│  │  🧠 Models   │  │  │   ├ SessionsSidebar           │ │      │
-│  │  🖥️ Server   │  │  │   ├ MessageBubble + CodeBlock │ │      │
-│  │  🔑 API      │  │  │   ├ Model/Provider Picker     │ │      │
-│  │  ⚙️ Settings │  │  │   └ Tool/MCP Config Panels    │ │      │
-│  └─────────────┘  │  └────────────────────────────────┘ │      │
-│                    │  ┌── SettingsPage ────────────────┐ │      │
-│                    │  │ ProfileTab │ ProvidersTab      │ │      │
-│                    │  │ MCP Tab    │ Tools Tab         │ │      │
-│                    │  └────────────────────────────────┘ │      │
-│                    └────────────────────────────────────┘      │
-│                                                               │
-│  ┌──────── lib/ ──────────────────────────────────────┐       │
-│  │ api.ts         → types, tools, MCP, streaming      │       │
-│  │ toolExecutor   → MCP dispatch vs built-in          │       │
-│  │ chatLogic      → hybrid memory / RAG injection     │       │
-│  └────────────────────────────────────────────────────┘       │
-└────────────────────────────┬──────────────────────────────────┘
-                             │  HTTPS / WebSocket
-                 ┌───────────▼───────────┐
-                 │   Supabase Backend    │
-                 │  ┌─────────────────┐  │
-                 │  │  Auth (JWT)     │  │
-                 │  │  PostgreSQL DB  │  │
-                 │  │  Edge Functions │  │
-                 │  │  ├ api-proxy    │  │
-                 │  │  ├ mcp-proxy    │  │
-                 │  │  └ tool-execute │  │
-                 │  └─────────────────┘  │
-                 └───────────────────────┘
-```
+Configured in both `vite.config.ts` and `tsconfig.json`:
+
+| Alias | Resolves to |
+|---|---|
+| `@/*` | `src/*` |
+| `@aistclaw/api/*` | `src/api/aistclaw/*` |
+| `@aistclaw/components/*` | `src/components/aistclaw/*` |
+| `@aistclaw/constants/*` | `src/constants/aistclaw/*` |
+| `@aistclaw/hooks/*` | `src/hooks/aistclaw/*` |
+| `@aistclaw/i18n` | `src/i18n/aistclaw/index.ts` |
+| `@aistclaw/lib/*` | `src/lib/aistclaw/*` |
+| `@aistclaw/pages/*` | `src/pages/aistclaw/*` |
+| `@aistclaw/routes` | `src/aistclaw-routes.tsx` |
+| `@aistclaw/stores/*` | `src/stores/aistclaw/*` |
+| `@aistclaw/types/*` | `src/types/aistclaw/*` |
 
 ---
 
-## Detailed Workflows
+## Key Data Files
 
-### 1. Authentication Flow
-
-```
-AuthPage.tsx
-    ↓ supabase.auth.signInWithPassword / signUp
-useAuth.ts (hook)
-    ↓ onAuthStateChange listener
-    ↓ Returns { user, session, loading, signOut }
-Index.tsx
-    ↓ if (!user && !loading) → render <AuthPage />
-    ↓ if (user) → render shell with pages
-```
-
-### 2. Chat Message Flow (Send → Stream → Display)
-
-```
-User types message → handleSend() in useChatLogic.tsx
-    │
-    ├─ 1. Create userMsg object (Message type from types.ts)
-    ├─ 2. Append to messagesMap for active tab
-    ├─ 3. Build apiMessages[] from history (user + assistant only)
-    │
-    ├─ 4. 🧠 Hybrid Memory Injection (chatLogic.ts)
-    │      ├─ STM: last 6 messages as [CHAT] context
-    │      ├─ LTM: (priority) MCP "rag_search" → Qdrant local
-    │      └─ LTM: (fallback) built-in "rag-cloud" → Supabase
-    │      └─ Inject into last user message via template
-    │
-    ├─ 5. Collect enabled tools (built-in + MCP)
-    ├─ 6. Check selectedModel.supportsTools — if true, use function-calling API
-    │
-    ├─ 7a. Tool-calling path (sendChatCompletionWithTools):
-    │       ├─ Non-streaming POST with tools[]
-    │       ├─ If tool_calls → executeToolCall() → append results → loop
-    │       └─ If content only → display and break
-    │
-    ├─ 7b. Streaming path (sendChatCompletionStreaming):
-    │       ├─ SSE stream: parse "data:" lines
-    │       └─ Accumulate tokens → update assistant message
-    │
-    └─ 8. Both paths wrapped with fetchWithRetry (429 backoff)
-```
-
-### 3. Tool Execution Pipeline
-
-```
-executeToolCall(name, args, mcpToolDefs, mcpServers, executionMode)
-    │                                    (lib/toolExecutor.ts)
-    │
-    ├─ Is MCP tool? → find matching server → executeMcpToolCall()
-    │   └─ POST to server.url with JSON-RPC (tools/call)
-    │       └─ If remote → proxied via supabase edge "mcp-proxy"
-    │
-    └─ Is Built-in? → executeBuiltInTool(name, parsedArgs, executionMode)
-        ├─ canExecute() check (capabilities vs mode)
-        ├─ js-sandbox    → safe math evaluator (no eval/Function)
-        ├─ web-search    → Brave Search API via supabase edge
-        ├─ url-fetch     → HTTP fetch via supabase edge
-        ├─ current-time  → Date.now()
-        ├─ calculator    → safe recursive-descent parser
-        ├─ json-transform → JSON manipulation
-        ├─ random-generator → crypto-safe random
-        ├─ base64        → btoa/atob
-        ├─ hash          → SubtleCrypto SHA-256
-        ├─ file-read     → supabase user_files table
-        ├─ rag-cloud     → Supabase documents table (full-text search)
-        └─ rag-local     → ⚠️ STUB (returns "not available yet")
-```
-
-### 4. Execution Mode System
-
-| Mode | Behavior | UI Indicator |
-|------|----------|--------------|
-| `offline` | Only local tools. Cloud tools return graceful errors. | 🟢 Green dot |
-| `hybrid` | Prefer local, fallback to cloud. **Default**. | 🔵 Blue dot |
-| `full` | All tools unrestricted. Full cloud access. | 🟣 Purple dot |
-
-- Persisted in `localStorage` key `ai-server-execution-mode`.
-- Toggled via button in chat input bar (cycles: offline → hybrid → full).
-- Passed to `executeToolCall()` and `buildHybridMemoryPrompt()`.
-- Enforcement via `canExecute()` checks tool `capabilities` against mode.
-
-### 5. Hybrid Memory Architecture (chatLogic.ts)
-
-```
-buildHybridMemoryPrompt(userInput, recentMessages, executionMode, mcpToolDefs, mcpServers)
-    │
-    ├─ STM (Short-Term Memory)
-    │   └─ Last 6 messages → [CHAT][score: 1.0] ROLE: content
-    │
-    ├─ LTM (Long-Term Memory)
-    │   ├─ Priority 1: MCP RAG server (tool named "rag_search")
-    │   │   → Semantic vector search via local Qdrant
-    │   └─ Priority 2: Cloud RAG ("rag-cloud" built-in)
-    │       → Only if local unavailable AND mode ≠ "offline"
-    │
-    └─ Result: HYBRID_RAG_TEMPLATE with {chat_context}, {global_context}, {user_input}
-```
-
-### 6. Capability-Based Tool System
-
-Each tool has a `capabilities` array and a `layer` field:
-```ts
-type Capability = "local:compute" | "local:exec" | "local:fs" | "local:db" | "local:rag"
-                | "net:http" | "net:api" | "net:git"
-                | "cloud:storage" | "cloud:db";
-
-type Layer = "local" | "edge" | "api" | "hybrid";
-```
-
-UI renders color-coded badges per capability prefix:
-- 🟢 `local:*` → green badge
-- 🔵 `net:*` → blue badge
-- 🟣 `cloud:*` → purple badge
-
-### 7. Provider Management Flow
-
-```
-ProvidersTab.tsx (extracted component)
-    ├─ fetchProviders() → supabase.from("api_providers").select("*")
-    ├─ handleAddProvider() → insert with XOR-encrypted API key
-    ├─ handleToggleProvider() → update enabled field
-    ├─ saveEdit() → update name, url, key
-    └─ handleDeleteProvider() → delete by ID
-
-Index.tsx (shell)
-    ├─ Fetches providers from DB on mount
-    ├─ Decrypts API keys (XOR + base64)
-    ├─ Merges with INITIAL_PROVIDERS defaults
-    └─ Passes decrypted providers to ChatPage
-```
-
-### 8. Model Selection & Streaming
-
-```
-useChatLogic: models state
-    ├─ Local models: fetched from localhost:1234/v1/models (llama.cpp)
-    ├─ Cloud models: fetched from provider.baseUrl/models per enabled provider
-    └─ Provider picker + model picker in ChatUI input bar
-
-streamChat / sendChatCompletionWithTools
-    ├─ POST to provider.baseUrl/chat/completions
-    │   └─ Headers: Authorization Bearer <decrypted-key>
-    ├─ fetchWithRetry: handles 429 with exponential backoff (max 3 retries)
-    └─ SSE parser accumulates content + tool_calls + thinking tokens
-```
-
-### 9. Chat Component Architecture
-
-```
-ChatPage.tsx (22 lines — thin wrapper)
-    ├─ useChatLogic(props) → returns all state + handlers (555 lines)
-    └─ <ChatUI {...logic} /> → pure render (380 lines)
-
-ChatUI renders:
-    ├─ SessionsSidebar (memo) — session list, search, tabs
-    ├─ Message area — maps messages → MessageBubble (memo)
-    │   └─ MessageBubble → CodeBlock (memo) for code blocks
-    ├─ Input bar:
-    │   ├─ Agent mode picker (chat, create-image, canvas, etc.)
-    │   ├─ Image attach (paste / file)
-    │   ├─ Tool config panel (toggle built-in tools)
-    │   ├─ MCP server panel (toggle MCP servers)
-    │   ├─ Provider picker
-    │   ├─ Execution mode toggle (offline/hybrid/full)
-    │   └─ Model picker (search, capabilities badges)
-    └─ JsonEditorTab — raw JSON editing for tools/MCP configs
-```
+| File | Purpose |
+|---|---|
+| `data/providers.json` | API provider configs (name, baseUrl, apiKey, enabled) |
+| `data/mcp_servers.json` | MCP server list (id, name, url, enabled) |
+| `data/users.json` | Local user accounts |
+| `data/auth_sessions.json` | Active session tokens |
+| `data/provider_model_prefs.json` | Saved model selections per provider |
 
 ---
 
-## Database Schema (Supabase)
+## localStorage Keys
 
-| Table | Purpose |
-|-------|---------|
-| `profiles` | User display_name, avatar_url (RLS: own row) |
-| `api_providers` | Saved providers: name, type, base_url, encrypted key, enabled |
-| `api_keys` | User API keys for the gateway endpoint |
-| `api_usage_logs` | Per-request logging: model, tokens_in/out, latency_ms |
-| `mcp_servers` | Saved MCP server configs (name, url, headers, enabled, status) |
-| `documents` | RAG knowledge base: content, metadata, full-text search (fts) |
-| `chat_sessions` | Persisted chat sessions (title, messages JSON) |
-
----
-
-## Edge Functions
-
-| Function | Route | Purpose |
-|----------|-------|---------|
-| `api-proxy` | `/functions/v1/api-proxy` | Proxies LLM API calls, injects auth keys server-side |
-| `mcp-proxy` | `/functions/v1/mcp-proxy` | Proxies remote MCP servers (avoids CORS, hides keys) |
-| `tool-execute` | `/functions/v1/tool-execute` | Executes tools server-side (web-search, url-fetch) |
-| `hello` | `/functions/v1/hello` | Health check |
+| Key | Store | Contents |
+|---|---|---|
+| `chat-store` | chatStore | Tabs, messages, active tab |
+| `settings-store` | settingsStore | All app settings |
+| `ai-server:downloads` | useDownloadManager | Download queue state |
+| `ai-server-providers` | Index.tsx | Provider list fallback |
+| `ai-server-theme` | Index.tsx | `dark` / `light` |
+| `ai-server-chat-sessions-open` | Index.tsx | Sessions panel visibility |
+| `ai-server-force-offline` | Index.tsx | Force offline mode flag |
+| `ai-server-tools-config` | api.ts | Tool configs (versioned, v6) |
+| `ai-server-mcp-servers` | mcpOperations.ts | MCP server list |
+| `app:settings:paths` | ModelsPage / PathsTab | Models directory path |
 
 ---
 
-## Key Techniques
+## Backend Route Groups
 
-| Technique | Where | Description |
-|-----------|-------|-------------|
-| `React.memo()` | CodeBlock, MessageBubble, SessionsSidebar | Prevents re-renders on parent state changes |
-| Custom hook extraction | `useChatLogic` | Separates state/logic from render (555 vs 380 lines) |
-| `useRef` for stale closure | `messagesMapRef` in useChatLogic | Avoids reading stale state in async `handleSend` |
-| Safe math parser | `safeEvalMath()` in api.ts | Recursive-descent (no `eval`/`new Function`) |
-| XOR key obfuscation | `encryptApiKey()` / `decryptApiKey()` | Base64-wrapped XOR with fixed key |
-| `fetchWithRetry` | api.ts streaming/tool calls | Exponential backoff on 429 (respects Retry-After header) |
-| `canExecute()` | api.ts → executeBuiltInTool | Checks tool capabilities against execution mode |
-| Hybrid Memory | chatLogic.ts | STM (last 6 msgs) + LTM (MCP RAG → Cloud RAG fallback) |
-| localStorage persistence | useChatLogic | Tabs, messages, active tab, execution mode |
-| Tool version bumping | `TOOLS_VERSION` in api.ts | Force-refreshes cached tool configs on capability schema changes |
+The Go server registers route modules in this order:
 
----
-
-## Scripts
-
-| Command | Action |
-|---------|--------|
-| `npm run dev` | Start Vite dev server (HMR) |
-| `npm run build` | Production build via `tsc && vite build` |
-| `npm run preview` | Preview production build locally |
-| `npx tsc --noEmit` | Type-check only |
-| `npx vitest run` | Run unit tests |
-
----
-
-## File Size Reference
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `SettingsPage.tsx` | ~1142 | Settings tabs (partially decomposed) |
-| `api.ts` | ~1068 | Types, tool defs, built-in tools, streaming, MCP |
-| `ServerPage.tsx` | ~850 | Local server dashboard |
-| `ApiGatewayPage.tsx` | ~700 | API key management |
-| `DiscoverPage.tsx` | ~700 | Model discovery |
-| `useChatLogic.tsx` | ~555 | Chat state + logic (extracted from ChatPage) |
-| `Index.tsx` | ~420 | App shell + global state |
-| `ChatUI.tsx` | ~380 | Chat render component |
-| `ModelsPage.tsx` | ~300 | Model browser |
-| `chatLogic.ts` | ~93 | Hybrid memory builder |
-| `toolExecutor.ts` | ~39 | Tool dispatch router |
-| `ChatPage.tsx` | ~22 | Thin wrapper |
-
----
-
-## Current Validation Notes (April 2026)
-
-### ✅ Confirmed current behavior
-
-1. **Settings page refactor is complete**
-    - `SettingsPage.tsx` is now a tab shell that renders extracted components (`ProfileTab`, `ProvidersTab`, `McpServersTab`, `ToolsTab`, `ApiTab`, `PathsTab`, `AdvancedTab`, `RuntimeTab`, `HardwareTab`, `AboutTab`).
-    - Provider CRUD logic is in `components/settings/ProvidersTab.tsx`, not in `SettingsPage.tsx`.
-
-2. **Execution mode model is now `offline | online`**
-    - Runtime mode toggles between `offline` and `online` using `ai-server-force-offline`.
-    - Earlier `offline | hybrid | full` behavior no longer reflects current source.
-
-3. **Chat state is persisted through Zustand**
-    - `src/stores/chatStore.ts` now owns tabs, messages map, active tab, and generation state.
-    - Storage key: `ai-server-chat-storage`.
-
-4. **Desktop auth/data path is local backend-first**
-    - `useAuth` uses backend session endpoints (`/v1/auth/*`), not direct Supabase auth in the desktop path.
-    - Data is persisted under `data/*.json` through backend routes.
-
-5. **Tool system canonical IDs are namespaced**
-    - Built-in tool dispatcher uses canonical IDs like `web.search`, `web.fetch`, `kb.search`, `kb.store`, `kb.list`.
-    - Legacy IDs are normalized through alias mapping for backward compatibility.
-
-### ⚠️ Important implementation caveats
-
-1. **Sandbox aliases depend on MCP availability**
-    - `js-sandbox` and `python-sandbox` alias to `sandbox.run_js` and `sandbox.run_python`.
-    - If sandbox MCP tools are not discovered, these calls return unknown-tool behavior.
-
-2. **Desktop API key storage is local file-backed**
-    - Provider keys are stored in backend data files (`data/providers.json`) for desktop mode.
-    - Treat the local machine and data directory as sensitive.
-
-3. **Docs mentioning mandatory Supabase tables are deployment-specific**
-    - Supabase remains supported for cloud/edge flows.
-    - Core desktop flow can run against local backend persistence without Supabase.
-
-### Backend route groups (current source)
-
-- `models`: `/v1/models`, `/v1/models/available`, `/v1/models/current`, `/v1/models/load`, `/v1/models/unload`
-- `chat`: `/v1/chat/completions`, `/v1/chat/stop`
-- `providers`: `/v1/providers*` and `/v1/providers/{capability}`
-- `auth/profile`: `/v1/auth/*`, `/v1/profile*`
-- `knowledge`: `/v1/kb/documents`
-- `mcp`: `/v1/mcp/servers`, `/v1/mcp/proxy`
-- `agent`: `/v1/agent/runs`, `/v1/agent/chat`, `/v1/agent/runs/{id}*`
-- `system`: `/v1/system/status`, `/v1/system/hardware`, `/v1/system/usage`, `/v1/system/backends`
-- `tools`: `/v1/tools/execute`
-- `components`: `/v1/components*`
-- `tasks`: `/v1/tasks*`
-
-### Dev startup notes
-
-- `npm run dev:electron` runs predev hooks that build Go binaries.
-- Pgvector docker auto-start is conditional: it only triggers when DSN targets `localhost:5433`.
-- Runtime engine port is dynamic (starts at `1234`, increments if occupied).
+1. `models` — model lifecycle (load, unload, list, available)
+2. `chat` — `/v1/chat/completions` (streaming SSE)
+3. `providers` — cloud provider CRUD + proxy (chat, image, audio)
+4. `settings` — app settings
+5. `auth/data` — auth routes + local data file access
+6. `tools` — `/v1/tools/execute`
+7. `agent runs` — `/v1/agent/chat`
+8. `system` — `/v1/system/status`, `/v1/system/backends`, `/v1/system/usage`
+9. `config` — `/v1/config`
+10. `tasks` — task management
+11. `components` — component registry
+12. `events` — event streaming
