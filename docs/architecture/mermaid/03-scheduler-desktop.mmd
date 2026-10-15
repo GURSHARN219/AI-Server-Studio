@@ -1,0 +1,71 @@
+flowchart TB
+  subgraph ELECTRON["Electron lifecycle"]
+    APP["Electron main process"]
+    SINGLE["Single-instance lock"]
+    SECOND["Second launch: focus existing window, then exit; no backend started"]
+    VERIFY["Verify existing backend: lockfile + PID alive + start time + token + health + config"]
+    REUSE["Reuse verified backend"]
+    CLEANUP["Clean up orphan only when ownership verified"]
+    START["Start backend with fresh token"]
+    CONFLICT["Ambiguous or unrelated process on port: report conflict + recovery steps; kill nothing; no alternate port"]
+    LOCK["Backend lockfile: PID, start time, token, port"]
+    TRAY["Tray menu: Open, Quit"]
+    HIDE["Window close => hide to tray"]
+    QUIT["Explicit Quit"]
+    WARN{"Pending schedules?"}
+    STOP["Stop backend + scheduler; schedules pause until next launch"]
+    AUTOSTART["Per-user Windows autostart, off by default; launches hidden into tray; setting: Open window at login, default off"]
+    RESUME["Power-resume signal"]
+  end
+  subgraph BACKENDG["Go backend"]
+    BACKEND["Go backend process"]
+    SCHED["Scheduler worker"]
+    RECON["Reconcile due jobs: at startup, on resume, periodically"]
+    DRAFT["Agent- or API-proposed job: draft until UI confirms; API needs scheduler-job-creation scope"]
+    JOB["Scheduled job"]
+    VERSION["Immutable job_version: edits create a new version; claimed occurrences keep theirs"]
+    CATCHUP{"Catch-up policy: skip | run_once | run_missed bounded"}
+    OCC["UNIQUE(job_id, scheduled_for_utc)"]
+    RUN["task_runs row + job_version_id"]
+    SKIP["Skipped occurrence"]
+    AUDIT[("execution_events")]
+    MANUAL["Run now: new run, scheduled_for_utc NULL"]
+    DISPATCH["Unified dispatcher: current policy recheck"]
+    BLOCKED["blocked_policy + notification; resumes only on explicit retry"]
+    RETRY["Retry same run ID; attempt + 1; original version and occurrence time"]
+    RETENTION["scheduler_history_retention_days = 90"]
+  end
+  APP --> SINGLE
+  SINGLE -->|"second launch"| SECOND
+  SINGLE -->|"first instance"| VERIFY
+  VERIFY -->|"reads"| LOCK
+  VERIFY -->|"verified identity, config, health"| REUSE --> BACKEND
+  VERIFY -->|"none running"| START --> BACKEND
+  VERIFY -->|"orphan, ownership verified"| CLEANUP --> START
+  VERIFY -->|"ambiguous"| CONFLICT
+  BACKEND -->|"writes after start"| LOCK
+  APP --> HIDE -->|"backend and scheduler keep running"| BACKEND
+  APP --> TRAY
+  TRAY -->|"Open"| APP
+  TRAY --> QUIT --> WARN
+  WARN -->|"yes: cancel"| APP
+  WARN -->|"confirm quit, or none pending"| STOP
+  STOP -.-> BACKEND
+  AUTOSTART --> APP
+  BACKEND --> SCHED
+  RESUME --> RECON
+  BACKEND --> RECON --> SCHED
+  DRAFT -->|"UI confirmation"| JOB
+  SCHED --> JOB --> VERSION --> CATCHUP
+  CATCHUP -->|"eligible"| OCC --> RUN --> DISPATCH
+  CATCHUP -->|"skipped"| SKIP --> AUDIT
+  MANUAL --> RUN
+  RUN --> AUDIT
+  DISPATCH --> RUN
+  DISPATCH -->|"policy denies"| BLOCKED --> RUN
+  RUN --> RETRY --> DISPATCH
+  BLOCKED -->|"explicit UI retry only"| RETRY
+  RETENTION --> AUDIT
+  RULES["UTC timestamps + IANA timezone; embed Go tzdata; test DST. History retention is at least the displayed history window. Never kill a process only because its port matches."]
+  SCHED -.-> RULES
+  VERIFY -.-> RULES

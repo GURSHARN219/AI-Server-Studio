@@ -1,0 +1,14 @@
+{
+  "name": "mcp-sandbox-server",
+  "version": "1.0.0",
+  "description": "MCP Server for Python and JavaScript Sandboxes",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.5.0",
+    "pyodide": "^0.26.4"
+  }
+}

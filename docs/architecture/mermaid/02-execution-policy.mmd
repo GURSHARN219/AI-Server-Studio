@@ -1,0 +1,66 @@
+flowchart TB
+  INPUT["Request / scheduled occurrence / workflow node"]
+  PRINCIPAL["Principal: session | api_key | webhook | scheduler"]
+  EXEC["Execution controller"]
+  VALIDATE["Validate request + scope"]
+  POLICY["Policy: permissions, connectivity, approval state"]
+  CONNECT["Connectivity: offline | online"]
+  DISPATCH["Unified dispatcher"]
+  BLOCKED["blocked_policy: no fallback; stays blocked even if user goes Online"]
+  NOTIFY["Notification: in-app + desktop"]
+  RUNS[("task_runs: status, attempt, resource_class")]
+  RUNEVENTS[("run_events: ordered SSE replay")]
+  EXEVEVENTS[("execution_events: audit/lifecycle, redacted")]
+  AGENT["Agent / planner"]
+  SUB["Subagents — LATER PHASE"]
+  TOOLPOLICY["Tool policy"]
+  TOOLDISPATCH["Tool dispatcher"]
+  SIDE["side_effect: none | idempotent | non_idempotent"]
+  RESULT["Tool result / receipt"]
+  GPU["Heavy-GPU slot: derived from task_runs; waiting jobs picked oldest created_at first, stable ID tie-break; policy, cancel and permissions rechecked at claim"]
+  LOCALM["Local model adapters"]
+  VOICE["Voice / STT / TTS adapters"]
+  COMFY["ComfyUI image/video adapters"]
+  APPROVAL["Approval record + expiry; run is waiting_approval"]
+  UI["Interactive approval UI"]
+  RECHECK["Fresh policy + permission recheck; parameters must match"]
+  CANCEL["Rejected or expired: run cancelled, user notified, action never executes"]
+  DELIVERY["External send tool; non-idempotent by default"]
+  CHANNEL["Channel adapters — LATER PHASE"]
+  RECOVERY["Crash recovery: ambiguous non-idempotent work => interrupted"]
+  RETRY["Explicit retry via UI or authorised API scope: same run ID, attempt + 1, blocked attempt kept in history"]
+  INPUT --> PRINCIPAL --> EXEC --> VALIDATE --> POLICY
+  CONNECT --> POLICY
+  POLICY -->|"allowed"| DISPATCH
+  POLICY -->|"denied"| BLOCKED
+  POLICY -->|"approval required"| APPROVAL
+  BLOCKED --> RUNS
+  BLOCKED --> NOTIFY
+  DISPATCH --> RUNS
+  RUNS --> RUNEVENTS
+  RUNS --> EVENTS_NOTE
+  EVENTS_NOTE["Audit event written with the transition"] --> EXEVEVENTS
+  DISPATCH --> AGENT
+  AGENT -. "later" .-> SUB
+  AGENT --> TOOLPOLICY
+  TOOLPOLICY -->|"central check"| POLICY
+  TOOLPOLICY --> SIDE
+  TOOLPOLICY -->|"allowed"| TOOLDISPATCH --> RESULT
+  DISPATCH -->|"heavy local jobs only"| GPU
+  RUNS --> GPU
+  GPU --> LOCALM
+  GPU --> VOICE
+  GPU --> COMFY
+  UI -->|"interactive session only"| APPROVAL
+  APPROVAL -->|"approved"| RECHECK --> POLICY
+  APPROVAL -->|"rejected or expired"| CANCEL --> RUNS
+  CANCEL --> NOTIFY
+  AGENT -->|"send request"| TOOLPOLICY
+  TOOLDISPATCH --> DELIVERY --> CHANNEL
+  RECOVERY --> RUNS
+  UI -->|"retry"| RETRY --> POLICY
+  RETRY --> RUNS
+  TX["One SQLite transaction: task_runs state change + run_events record + execution_events record where applicable. Notify SSE clients only after commit."]
+  RUNS -.-> TX
+  RUNEVENTS -.-> TX
+  EXEVEVENTS -.-> TX

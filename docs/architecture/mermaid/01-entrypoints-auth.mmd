@@ -1,0 +1,44 @@
+flowchart TB
+  subgraph LOCALPATH["Desktop/local path"]
+    UI["React pages: chat, tasks, models, settings, memory, skills, usage"]
+    LOCAL["Local listener 127.0.0.1:PORT_A"]
+    SESSION["Interactive session authentication"]
+    ADMIN["Admin + management routes"]
+    APPROUTE["Approval decision route: session only; never in any public allowlist"]
+    SSE["Run-event replay / SSE, owner-scoped"]
+  end
+  subgraph PUBLICPATH["Optional public path — LATER PHASE"]
+    DNS["api.domain.com DNS + TLS"]
+    TUNNEL["Cloudflare Tunnel / ngrok"]
+    PUBLIC["Separate listener 127.0.0.1:PORT_B"]
+    ALLOW["Strict allowlist; no admin or approval routes registered"]
+    KEY["API-key auth: scopes, expiry, revocation, rate limits"]
+    KEYSSE["Run events for API keys, scoped to the key owner"]
+    JOBSCOPE["Job creation needs the dedicated scheduler-job-creation scope; result is a draft"]
+  end
+  subgraph WEBHOOKPATH["Webhook path — LATER PHASE"]
+    SRC["Webhook sender"]
+    WHALLOW["Separate webhook allowlist"]
+    WHAUTH["HMAC/signature + replay-window check"]
+    WHHANDLER["Create draft or configured action; cannot approve or activate"]
+  end
+  SCHEDSRC["Scheduler worker"]
+  PRINCIPAL["Principal envelope: session | api_key | webhook | scheduler"]
+  EXEC["Execution controller"]
+  POLICY["Policy + current permission check"]
+  DISPATCH["Unified dispatcher"]
+  UI --> LOCAL --> SESSION
+  SESSION --> ADMIN
+  SESSION --> APPROUTE
+  SESSION --> SSE --> UI
+  ADMIN --> PRINCIPAL
+  DNS --> TUNNEL --> PUBLIC --> ALLOW --> KEY --> PRINCIPAL
+  KEY --> KEYSSE
+  KEY --> JOBSCOPE --> PRINCIPAL
+  SRC --> WHALLOW --> WHAUTH --> WHHANDLER --> PRINCIPAL
+  SCHEDSRC --> PRINCIPAL
+  PRINCIPAL --> EXEC --> POLICY --> DISPATCH
+  ISOLATION["Security invariant: public listener never registers admin, management or approval routes."]
+  PUBLIC -.-> ISOLATION
+  ADMIN -.-> ISOLATION
+  APPROUTE -.-> ISOLATION

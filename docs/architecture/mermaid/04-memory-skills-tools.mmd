@@ -1,0 +1,71 @@
+flowchart TB
+  subgraph MEM["Five memory types"]
+    UI["Memory UI"]
+    RETRIEVE["Owner-scoped retrieval + ranking, per-type budgets"]
+    SERVICE["Memory service"]
+    PROFILE["profile"]
+    EPISODIC["episodic"]
+    ENTITY["entity_context"]
+    SEMANTIC["semantic"]
+    PROCEDURAL["procedural"]
+    OUTCOME["Task outcome or proposed update"]
+    FILTER["Secret filter: credentials and tokens are never stored"]
+    WRITE["Proposed memory update"]
+    PROV["Provenance + source refs"]
+    REVIEW["Validation/review gate; procedural changes require explicit review"]
+    DB[("SQLite + FTS")]
+    KB["Knowledge-base documents"]
+  end
+  subgraph SKILLS["Versioned skills"]
+    SKILLUI["Skills UI"]
+    REG["Skill registry"]
+    VALID["Validate metadata + declared requirements"]
+    VERSIONS[("Immutable skill_versions: authoritative executable instructions")]
+    REF["Procedural memory stores skill/version references and outcome notes only"]
+  end
+  subgraph TOOLS["Tools and MCP"]
+    AGENT["Agent / planner"]
+    TOOLREG["Backend tool registry"]
+    TOOLPOLICY["Tool policy: scopes + connectivity + permissions"]
+    SIDE["side_effect: none | idempotent | non_idempotent"]
+    DISPATCH["Tool dispatcher"]
+    RECEIPT["Execution receipt"]
+    SSRF["Destination + redirect validation (SSRF)"]
+    MCPCLIENT["MCP client"]
+    MCPSERVER["MCP servers"]
+    WEB["Web search/fetch"]
+    FILES["File tools"]
+    BROWSER["Read-only browser"]
+    SHELL["Restricted shell/code — LATER PHASE"]
+    POLICY["Central policy engine"]
+  end
+  UI --> SERVICE
+  RETRIEVE --> SERVICE
+  SERVICE <--> PROFILE
+  SERVICE <--> EPISODIC
+  SERVICE <--> ENTITY
+  SERVICE <--> SEMANTIC
+  SERVICE <--> PROCEDURAL
+  SERVICE <--> DB
+  SERVICE --> KB
+  AGENT -->|"load relevant memory"| RETRIEVE
+  AGENT --> OUTCOME --> FILTER --> WRITE --> PROV --> REVIEW --> SERVICE
+  PROCEDURAL --> REF
+  REF -->|"resolves to"| VERSIONS
+  SKILLUI --> REG --> VALID --> VERSIONS
+  AGENT --> TOOLREG --> TOOLPOLICY --> DISPATCH --> RECEIPT
+  TOOLPOLICY --> SIDE
+  TOOLPOLICY --> POLICY
+  DISPATCH --> SSRF
+  SSRF --> MCPCLIENT --> MCPSERVER
+  SSRF --> WEB
+  DISPATCH --> FILES
+  DISPATCH --> BROWSER
+  DISPATCH -. "later" .-> SHELL
+  VERSIONS -->|"load validated version"| AGENT
+  VALID -->|"requirements only; no tool grant"| POLICY
+  RULE["Skill text never bypasses backend policy. Loading a skill does not itself grant tools."]
+  VERSIONS -.-> RULE
+  TOOLPOLICY -.-> RULE
+  classDef future fill:#fff3cd,stroke:#b8860b,color:#222;
+  class SHELL future;

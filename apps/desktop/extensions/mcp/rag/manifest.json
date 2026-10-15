@@ -1,0 +1,8 @@
+{
+  "name": "rag",
+  "type": "local",
+  "entry": "./server.js",
+  "port": 4001,
+  "capabilities": ["local:rag", "local:db"],
+  "tools": ["rag_search", "rag_store"]
+}

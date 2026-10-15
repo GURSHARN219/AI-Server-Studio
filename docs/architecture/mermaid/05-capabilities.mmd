@@ -1,0 +1,64 @@
+flowchart TB
+  REQUEST["Capability request"]
+  ROUTER["Model/capability router"]
+  REGISTRY["Model registry: source local | provider; capability check"]
+  POLICY["Policy: offline | online; no silent fallback"]
+  DENY["blocked_policy: provider model while offline; notify user"]
+  LOCAL["Local adapter hub"]
+  PROVIDER["Provider adapter"]
+  GPU["Heavy-GPU slot derived from task_runs"]
+  LLMRT["Local LLM runtimes"]
+  VOICE["VoiceStudio / local voice services, behind Go endpoints"]
+  COMFY["ComfyUI"]
+  CHAT["Chat / reasoning"]
+  EMBED["Embeddings"]
+  STT["STT / audio transcription"]
+  TTS["TTS / audio speech"]
+  IMAGE["Image generation: /images/generations"]
+  VIDEO["Video generation"]
+  MODELFILES["Local model files + health"]
+  SECRET["SecretStore: provider credentials"]
+  ERR["Structured error returned to caller"]
+  NOFALL["Provider NOT called after a local failure"]
+  USAGE["Outgoing usage meter"]
+  RESULT["Result + request/task/run/trace IDs"]
+  REQUEST --> ROUTER --> REGISTRY --> POLICY
+  POLICY -->|"source=local"| LOCAL
+  POLICY -->|"source=provider and online"| PROVIDER
+  POLICY -->|"source=provider and offline"| DENY
+  LOCAL -->|"heavy jobs"| GPU
+  GPU --> LLMRT
+  GPU --> VOICE
+  GPU --> COMFY
+  LOCAL --> LLMRT
+  LOCAL --> VOICE
+  LOCAL --> COMFY
+  LLMRT --> CHAT
+  LLMRT --> EMBED
+  VOICE --> STT
+  VOICE --> TTS
+  COMFY --> IMAGE
+  COMFY --> VIDEO
+  MODELFILES --> LLMRT
+  MODELFILES --> VOICE
+  MODELFILES --> COMFY
+  LLMRT -->|"failure"| ERR
+  VOICE -->|"failure"| ERR
+  COMFY -->|"failure"| ERR
+  ERR -.->|"no automatic fallback"| NOFALL
+  SECRET --> PROVIDER
+  PROVIDER --> CHAT
+  PROVIDER --> EMBED
+  PROVIDER -->|"audio/transcription routes"| STT
+  PROVIDER -->|"audio/speech routes"| TTS
+  PROVIDER --> IMAGE
+  CHAT --> RESULT
+  EMBED --> RESULT
+  STT --> RESULT
+  TTS --> RESULT
+  IMAGE --> RESULT
+  VIDEO --> RESULT
+  PROVIDER --> USAGE
+  RESULT --> USAGE
+  RULE["Only advertise implemented routes. Provider-reported cost/tokens where available; local estimates clearly labeled. Browser-side voice, if kept, is labeled non-enforced."]
+  POLICY -.-> RULE

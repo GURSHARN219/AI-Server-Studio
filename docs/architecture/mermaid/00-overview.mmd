@@ -1,0 +1,75 @@
+flowchart TB
+  subgraph CLIENTS["Clients"]
+    DESKTOP["Electron + React UI"]
+    TRAY["Electron tray"]
+    CLI["SDK / CLI / external client — LATER PHASE"]
+    WEBHOOKSRC["Webhook sender — LATER PHASE"]
+  end
+  subgraph ENTRY["Isolated entry points"]
+    LOCAL["Local listener 127.0.0.1:PORT_A"]
+    SESSION["Session auth"]
+    SSE["Run-event SSE replay, owner-scoped"]
+    PUBLIC["Separate public listener :PORT_B — LATER PHASE"]
+    ALLOW["Strict public route allowlist — LATER PHASE"]
+    KEY["API-key auth — LATER PHASE"]
+    WHALLOW["Webhook-only allowlist — LATER PHASE"]
+    WHAUTH["Webhook signature + replay check — LATER PHASE"]
+  end
+  subgraph CORE["Go backend"]
+    MGMT["Owner-scoped management APIs"]
+    EXEC["Execution controller"]
+    POLICY["Policy + connectivity: offline | online"]
+    DISPATCH["Unified dispatcher"]
+    BLOCKED["blocked_policy + notification"]
+    RUNS[("task_runs — canonical state")]
+    EVENTS[("run_events — SSE replay")]
+    NOTIFY["In-app / desktop notifications — local"]
+  end
+  subgraph EXECUTION["Execution services"]
+    SCHED["Scheduler — principal: scheduler"]
+    AGENT["Agent / planner"]
+    SUBAGENT["Subagents — LATER PHASE"]
+    WF["Workflow engine — LATER PHASE"]
+    TOOLS["Tool registry + tool policy"]
+    MCP["MCP clients"]
+    MODEL["Local/provider capability adapters"]
+    CHANNEL["External channel adapters — LATER PHASE"]
+  end
+  subgraph DATA["Persistence / observability"]
+    DB[("SQLite")]
+    SECRET["SecretStore"]
+    REDACT["Redaction"]
+    LOG["Log collector"]
+    USAGE["Usage ledger"]
+    ANALYTICS["Owner-scoped analytics API"]
+  end
+  DESKTOP --> LOCAL --> SESSION --> MGMT
+  SESSION --> SSE --> DESKTOP
+  CLI --> PUBLIC --> ALLOW --> KEY --> EXEC
+  WEBHOOKSRC --> WHALLOW --> WHAUTH --> EXEC
+  MGMT --> EXEC
+  SCHED -->|"scheduler principal"| EXEC
+  EXEC --> POLICY
+  POLICY -->|"allowed"| DISPATCH --> RUNS
+  POLICY -->|"denied"| BLOCKED --> RUNS
+  BLOCKED --> NOTIFY --> DESKTOP
+  DISPATCH --> AGENT
+  DISPATCH --> WF
+  AGENT -. "later" .-> SUBAGENT
+  AGENT --> TOOLS --> MCP
+  TOOLS -->|"external sends only via tool policy"| CHANNEL
+  AGENT --> MODEL
+  RUNS --> EVENTS --> SSE
+  RUNS <--> DB
+  MGMT <--> DB
+  SCHED --> DB
+  MGMT --> ANALYTICS --> DB
+  TOOLS --> SECRET
+  MCP --> SECRET
+  MODEL --> SECRET
+  CHANNEL -. "later" .-> SECRET
+  EXEC --> REDACT --> LOG --> DB
+  USAGE --> DB
+  TRAY --> DESKTOP
+  classDef future fill:#fff3cd,stroke:#b8860b,color:#222;
+  class CLI,WEBHOOKSRC,PUBLIC,ALLOW,KEY,WHALLOW,WHAUTH,SUBAGENT,WF,CHANNEL future;

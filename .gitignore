@@ -1,0 +1,91 @@
+# Dependencies
+/node_modules/
+**/node_modules/
+.venv/
+
+# Build outputs
+/dist/
+/dist-ssr/
+/electron-dist/
+/release/
+/extensions/
+/apps/desktop/dist/
+/apps/desktop/electron-dist/
+/apps/desktop/release/
+/apps/desktop/node_modules/
+/apps/desktop/.vite/
+/apps/desktop/out/
+*.timestamp-*
+
+# Local audit and tool metadata
+/.archify/
+/supabase/.temp/
+/supabase/.branches/
+
+# Local runtime state and credentials (never source-controlled)
+/backend/goengine/data/
+**/auth_sessions.json
+**/agent-runs/
+**/migration-backups/
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.db
+*.db-*
+*.wal
+*.shm
+
+# Secrets and machine-local credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Go build output (local dev binary)
+/backend/goengine/engine.exe
+/backend/goengine/*.exe
+/backend/goengine/bin/
+**/*.dll
+**/*.so
+**/*.dylib
+**/*.go.*
+
+# Go caches and local binaries
+.gocache/
+.gotmp/
+bin/
+
+# Runtime data and temporary logs
+/data/
+logs/
+*.log
+*.zip
+*.7z
+tmp_engine_*.log
+
+# Local environment and machine-specific config
+.env
+.env.*
+!.env.example
+*.local
+
+# Test coverage and cache
+coverage/
+.nyc_output/
+.cache/
+
+# Editor directories and files
+/.cursor/
+/.kiro/
+/.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+/backup_archives

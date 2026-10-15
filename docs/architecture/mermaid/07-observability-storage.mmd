@@ -1,0 +1,71 @@
+flowchart TB
+  subgraph TX["Transactional state and audit"]
+    SCHED["Scheduler transition"]
+    APPROVAL["Approval transition"]
+    POLICY["Policy/blocked transition"]
+    STATE["State change"]
+    ONETX["One SQLite transaction"]
+    RUNS[("task_runs")]
+    RUNEVENTS[("run_events: SSE replay")]
+    EXEVENTS[("execution_events: audit")]
+    EXREDACT["Redact payload before audit write"]
+    DB[("SQLite source of truth")]
+    NOTIFYSSE["Notify SSE clients only after commit"]
+    SCHED --> STATE
+    APPROVAL --> STATE
+    POLICY --> STATE
+    STATE --> ONETX
+    ONETX --> RUNS
+    ONETX --> RUNEVENTS
+    ONETX --> EXREDACT --> EXEVENTS
+    RUNS --> DB
+    RUNEVENTS --> DB
+    EXEVENTS --> DB
+    ONETX -->|"after commit"| NOTIFYSSE
+  end
+  subgraph OBS["Observability + usage"]
+    SOURCES["Backend/tool/MCP/model/API/channel/scheduler/security events"]
+    REDACT["Redact secrets and sensitive values"]
+    COLLECT["Log collector"]
+    LOGDB[("Retained logs, stored in SQLite")]
+    USAGE["Usage ledger"]
+    PRICING["Versioned pricing + estimates"]
+    ANALYTICS["Owner-scoped analytics API"]
+    UI["Usage overview UI"]
+    BREAKDOWN["Incoming/outgoing, key, route, provider/model, owner, task/run/agent, channel"]
+    INCOMING["Incoming meter: requests, route, key, latency, errors"]
+    OUTGOING["Outgoing meter: provider/model, tokens, reported/estimated cost"]
+    LOCAL["Local usage: requests, latency, estimated tokens where available"]
+    SOURCES --> REDACT --> COLLECT --> LOGDB
+    INCOMING --> USAGE
+    OUTGOING --> USAGE
+    LOCAL --> USAGE
+    SOURCES --> USAGE
+    PRICING --> USAGE
+    USAGE --> BREAKDOWN --> ANALYTICS --> UI
+    LOGDB --> ANALYTICS
+  end
+  subgraph SECRETS["SecretStore"]
+    STORE["SecretStore"]
+    OS["OS credential manager"]
+    AES["AES-GCM fallback; key protected separately"]
+    PROVIDER["Provider credentials"]
+    MCP["MCP credentials"]
+    TUNNEL["Tunnel credentials — LATER PHASE"]
+    CHANNEL["Channel tokens — LATER PHASE"]
+    WEBHOOK["Webhook HMAC secrets — LATER PHASE"]
+    STORE --> OS
+    STORE --> AES
+    STORE --> PROVIDER
+    STORE --> MCP
+    STORE --> TUNNEL
+    STORE --> CHANNEL
+    STORE --> WEBHOOK
+  end
+  LOGDB --> DB
+  USAGE --> DB
+  ANALYTICS -->|"owner-scoped query"| DB
+  RULE["Correlate request_id/task_id/run_id/trace_id. Incoming request counts differ from outgoing provider calls. Never invent costs. Logs do not write execution_events."]
+  USAGE -.-> RULE
+  classDef future fill:#fff3cd,stroke:#b8860b,color:#222;
+  class TUNNEL,CHANNEL,WEBHOOK future;

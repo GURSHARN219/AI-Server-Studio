@@ -1,0 +1,34 @@
+flowchart TB
+  P0["Phase 0: audit only, no edits"]
+  G0{"Gate 0: report evidence + tests; user confirms"}
+  GAPS["Gaps found: report and stop; fix each prerequisite in its own prompt"]
+  P1["Phase 1: SQLite foundation"]
+  G1{"Gate 1"}
+  P2["Phase 2: migrate agent runs; preserve IDs, SSE sequence and cancellation"]
+  G2{"Gate 2"}
+  P3["Phase 3: auth + owner isolation"]
+  G3{"Gate 3"}
+  P4["Phase 4: SecretStore + API keys"]
+  G4{"Gate 4"}
+  P5["Phase 5: execution + connectivity policy"]
+  G5{"Gate 5"}
+  P6["Phase 6: tasks + task_runs, unified dispatcher, side_effect metadata, crash recovery, minimal Tasks UI"]
+  G6{"Gate 6"}
+  P7["Phase 7: scheduler, retries, catch-up, tray lifecycle, single-instance + backend identity, GPU lock"]
+  G7{"Gate 7"}
+  P8["Phase 8: approvals, draft jobs, job-creation scope, deterministic jobs"]
+  G8{"Gate 8"}
+  P9["Phase 9: Tasks and Scheduler UI, run replay"]
+  G9{"Gate 9"}
+  P10["Phase 10: five memory types + versioned skills"]
+  G10{"Gate 10"}
+  LATER["Later, separate prompts: workflow engine, subagents, read-only browser expansion, public tunnel, webhooks, channel adapters, usage analytics, restricted shell"]
+  P0 --> G0
+  G0 -->|"all prerequisites pass"| P1
+  G0 -->|"gaps"| GAPS
+  P1 --> G1 --> P2 --> G2 --> P3 --> G3 --> P4 --> G4 --> P5 --> G5 --> P6 --> G6 --> P7 --> G7 --> P8 --> G8 --> P9 --> G9 --> P10 --> G10
+  G10 -.-> LATER
+  RULE["Every gate: report evidence + test results and wait for explicit user confirmation. Never start the next phase automatically."]
+  G0 -.-> RULE
+  classDef future fill:#fff3cd,stroke:#b8860b,color:#222;
+  class LATER future;

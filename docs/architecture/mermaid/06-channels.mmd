@@ -1,0 +1,45 @@
+flowchart TB
+  AGENT["Agent / task result"]
+  REQUEST["Proposed external send"]
+  TOOLPOLICY["Tool policy"]
+  CONNECT{"Connectivity"}
+  PERMS{"Principal scopes + recipient/channel permissions"}
+  NEEDAPP{"Approval required?"}
+  SIDE["side_effect: external sends non_idempotent by default"]
+  DENY["Denied: blocked_policy + notification; nothing sent"]
+  UI["Interactive UI"]
+  APPROVAL["Approval record; session only"]
+  RECHECK["Fresh policy + permission recheck"]
+  DISPATCH["Tool dispatcher"]
+  DELIVERY["Delivery service + reconciliation"]
+  QUEUE[("Delivery queue/status")]
+  HUB["Channel adapter hub — LATER PHASE"]
+  TG["Telegram — LATER PHASE"]
+  DISCORD["Discord — LATER PHASE"]
+  SLACK["Slack — LATER PHASE"]
+  EMAIL["Email — LATER PHASE"]
+  CUSTOM["Custom channels — LATER PHASE"]
+  SECRET["SecretStore: channel tokens"]
+  RECEIPT["Delivery receipt / provider message ID"]
+  LOCALNOTE["Local notifications: in-app + desktop; always allowed, even offline"]
+  EVENTS["Blocked, skipped, failed, approval-expired events"]
+  AGENT --> REQUEST --> TOOLPOLICY --> CONNECT
+  CONNECT -->|"offline"| DENY
+  CONNECT -->|"online"| PERMS
+  PERMS -->|"denied"| DENY
+  PERMS -->|"allowed"| NEEDAPP
+  NEEDAPP -->|"yes"| APPROVAL
+  UI -->|"interactive session only"| APPROVAL --> RECHECK --> TOOLPOLICY
+  NEEDAPP -->|"no"| SIDE --> DISPATCH --> DELIVERY
+  DELIVERY --> QUEUE --> HUB
+  HUB -. "later" .-> TG
+  HUB -. "later" .-> DISCORD
+  HUB -. "later" .-> SLACK
+  HUB -. "later" .-> EMAIL
+  HUB -. "later" .-> CUSTOM
+  SECRET --> HUB
+  DELIVERY --> RECEIPT
+  DENY --> EVENTS
+  EVENTS --> LOCALNOTE
+  classDef future fill:#fff3cd,stroke:#b8860b,color:#222;
+  class HUB,TG,DISCORD,SLACK,EMAIL,CUSTOM future;

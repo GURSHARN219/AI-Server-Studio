@@ -1,0 +1,24 @@
+{
+  "name": "vite_react_shadcn_ts",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "apps/desktop/electron-dist/main.js",
+  "scripts": {
+    "dev": "npm --prefix apps/desktop run dev",
+    "dev:daemon": "npm --prefix apps/desktop run dev:daemon",
+    "dev:engine": "cd backend/goengine && go run ./cmd/engine",
+    "dev:engine:cuda": "cd backend/goengine && go run ./cmd/engine",
+    "ensure:pgvector": "node scripts/ensure-pgvector.mjs",
+    "build:engine:dev": "cd backend/goengine && set \"CGO_ENABLED=1\" && set \"CC=C:\\msys64\\ucrt64\\bin\\gcc.exe\" && set \"CXX=C:\\msys64\\ucrt64\\bin\\g++.exe\" && go build -o engine.exe ./cmd/engine",
+    "stop:pgvector": "node scripts/stop-pgvector.mjs",
+    "dev:electron": "npm --prefix apps/desktop run dev:electron",
+    "build": "npm --prefix apps/desktop run build",
+    "build:dev": "npm --prefix apps/desktop run build:dev",
+    "build:electron": "npm --prefix apps/desktop run build:electron",
+    "lint": "npm --prefix apps/desktop run lint",
+    "preview": "npm --prefix apps/desktop run preview",
+    "test": "npm --prefix apps/desktop test",
+    "test:watch": "npm --prefix apps/desktop run test:watch"
+  }
+}
