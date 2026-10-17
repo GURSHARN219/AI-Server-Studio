@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { AgentEvent, AgentRunEvent, AgentResult, AgentRunnerConfig, TaskPlan, TaskStep } from "@/lib/agent";
+import type { AgentEvent, AgentRunEvent, AgentResult, AgentRunnerConfig, TaskPlan, TaskStep } from "@/features/agents";
 import { agentRunEventsUrl, cancelAgentRun, createAgentRun, getAgentRun } from "@/api/agents";
 import { streamEngineEvents } from "@/api/sse";
 import { ApiError } from "@/api/client";

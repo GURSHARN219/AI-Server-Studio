@@ -10,4 +10,4 @@ export type {
   AgentRunnerConfig,
   McpDiscoveryResult,
   McpServerConfig,
-} from "./types";
+} from "@/features/agents/types";

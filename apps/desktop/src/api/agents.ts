@@ -1,5 +1,5 @@
 import { engineApiBase, requestJson } from "@/api/client";
-import type { AgentRunEvent } from "@/lib/agent";
+import type { AgentRunEvent } from "@/features/agents";
 import type { ApiMessage, ExecutionMode, ToolDefinition } from "@/lib/api";
 import type { ApiProvider } from "@/types";
 

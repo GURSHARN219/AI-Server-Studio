@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CheckCircle2, Circle, Loader2, ChevronDown, ChevronRight, AlertCircle } from "lucide-react";
-import type { AgentEvent, TaskStep } from "@/lib/agent";
+import type { AgentEvent, TaskStep } from "@/features/agents";
 
 interface AgentProgressPanelProps {
   events: AgentEvent[];

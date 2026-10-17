@@ -1,7 +1,7 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAgentRunner } from "@/hooks/useAgentRunner";
-import type { AgentRunnerConfig } from "@/lib/agent";
+import type { AgentRunnerConfig } from "@/features/agents";
 
 vi.mock("@/lib/localEngine", () => ({ getEnginePort: () => 9090 }));
 const config: Omit<AgentRunnerConfig, "onEvent"> = {
