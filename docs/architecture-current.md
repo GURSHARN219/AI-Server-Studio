@@ -1,114 +1,87 @@
-# AI Server Studio — Current Architecture and Migration Boundaries
+# AI Server Studio — Current Unified Architecture
 
-This document records the implemented architecture boundary after the durable
-agent-run and SSE reliability refactoring. It describes the current source
-tree, not an aspirational microservice deployment.
+The repository is a modular monolith. One Go application owns the local HTTP
+API, inference, tools, workflows, sandbox boundary, RAG persistence and
+SQLite. The React application under `app/` is embedded into the Go executable,
+served by the Wails asset server in desktop mode, and can run through Vite HMR
+in development.
 
-## Current module map
+## Module map
 
-| Responsibility | Current location | Boundary |
-|---|---|---|
-| React shell and pages | `apps/desktop/src/App.tsx`, `apps/desktop/src/pages` | Presentation and navigation |
-| Chat and UI state | `apps/desktop/src/components/chat`, `apps/desktop/src/stores` | Renderer-only state |
-| Shared HTTP transport | `apps/desktop/src/api/client.ts` | JSON requests, auth header, normalized errors |
-| Agent HTTP client | `apps/desktop/src/api/agents.ts` | Run commands and event URLs |
-| Legacy API compatibility | `apps/desktop/src/lib/api.ts` | Existing provider, tool, auth, and MCP callers |
-| Agent progress UI adapter | `apps/desktop/src/hooks/useAgentRunner.ts` | SSE cursor/reconnect and UI event mapping |
-| Electron lifecycle | `apps/desktop/electron/main.ts`, `preload.ts` | Process supervision and explicit IPC |
-| HTTP gateway | `backend/goengine/server` | Routing, middleware, DTO decoding, serialization |
-| Inference | `backend/goengine/engine` | Existing `EngineInterface`, llama.cpp, and vLLM |
-| Run domain and persistence | `backend/goengine/agentrun` | Versioned JSON repository and durable run types |
-| Run coordination | `backend/goengine/server/agent_run_store.go` | Serialized commits, event sequencing, checkpoints |
-| Tool metadata | `backend/goengine/tools` | Backend-owned definitions and capability metadata |
+| Responsibility | Location |
+|---|---|
+| React shell, pages and UI state | `app/src` |
+| Shared frontend HTTP/SSE transport | `app/src/api`, `app/src/lib` |
+| Mermaid rendering | `app/src/components/chat/CodeBlock.tsx`, `app/src/lib/mermaidSvg.ts` |
+| Go entrypoint | `cmd/engine` |
+| Embedded production UI and Wails shell | `frontend.go`, `cmd/engine/desktop.go`, `app/dist` |
+| HTTP gateway and SPA fallback | `server` |
+| Inference and native model loading | `engine` |
+| Agent runs and persistence | `agentrun`, `persistence` |
+| Workflows and recovery | `workflow` |
+| Backend tool registry | `tools` |
+| Isolated code execution adapter | `sandbox` |
+| Document ingestion and vector ranking | `rag` |
+| Portable filesystem contract | `portable` |
+| Authentication and secrets | `security`, `server` |
 
-The project remains a modular monolith. The engine and Electron-supervised
-processes remain separate where process isolation is useful; no new network
-microservice is required by this refactoring.
+## Runtime modes
 
-## Durable agent-run contract
+- `aist` or `go run ./cmd/engine` starts the shared local API and opens the
+  embedded UI in a Wails desktop window.
+- `aist --server` runs headless API-only mode. It never starts Wails, opens a
+  browser, or registers GUI routes.
+- Vite HMR is a separate development command (`npm run dev`); it is not part of
+  the production executable lifecycle.
 
-Runs are stored below `agent-runs` in the resolved `AI_SERVER_DATA_DIR`.
-Each run is a versioned JSON document. Writes use a temporary file in the same
-directory, `Sync`, close, and rename. A process-local lock serializes reads and
-writes for the repository.
+The Go server keeps the API handler and authentication boundary shared by both
+modes. Wails serves the embedded `app/dist` filesystem, falls back to
+`index.html` for client-side routes, and mounts `/v1` requests on the same
+authenticated Go handler. Missing asset paths remain 404s; `/v1` paths never
+become SPA hits.
 
-The current wire-compatible statuses are `running`, `done`, `error`, and
-`canceled`. The domain also defines `queued`, `awaiting_approval`, and
-descriptive aliases `completed`, `failed`, and `cancelled` for the next
-compatibility-preserving migration.
+The Wails project file lives in `cmd/engine/wails.json`, not the repository
+root, because Wails v2 compiles the current project directory. The build script
+therefore runs from `cmd/engine`; this ensures Wails compiles the actual `main`
+package rather than the root `frontend` package and automatically supplies the
+`production` build tag required by Wails.
 
-Each run contains:
+## API and persistence compatibility
 
-- identity, goal, model, owner/session association, and execution metadata;
-- terminal status, result/error, timestamps, and cancellation intent;
-- an ordered event log with a per-run `sequence` starting at 1;
-- the most recent execution checkpoint.
+Existing `/v1` routes, SSE cursor/replay behavior, agent-run wire statuses,
+SQLite migrations, legacy JSON imports, owner scoping, authentication and
+portable data paths remain compatibility surfaces. The root Go module is the
+only authoritative Go module; the former nested backend source tree was
+removed after package tests passed.
 
-Events are persisted before subscribers are notified. An interrupted
-non-terminal run is retained and marked as failed on the next server start;
-the system does not blindly repeat an in-flight tool call.
+## Sandbox boundary
 
-## SSE replay contract
+`sandbox.Executor` validates code size, output size, timeout, cancellation and
+concurrency before starting a worker. It only runs when an explicitly
+configured worker command and verified process-isolation mode are present. The
+Go process does not evaluate JavaScript or Python, and missing isolation fails
+closed. The normalized `run_js`/`run_python` result includes bounded stdout,
+stderr, logs, result and typed error text.
 
-`GET /v1/agent/runs/{id}/events` accepts either:
+## RAG boundary
 
-- `Last-Event-ID: <sequence>`; or
-- `?cursor=<sequence>` for clients such as browser `EventSource` that cannot
-  set arbitrary headers.
+`rag.Service` owns normalized document records, deterministic chunks, metadata,
+embeddings, vector persistence, cosine ranking and owner-scoped deletion. Its
+`Embedder` interface is provider-agnostic. A missing embedder produces an
+explicit unavailable capability rather than a simulated semantic answer.
+Existing `/v1/kb/documents` compatibility routes remain available while the
+native `/v1/rag/status`, `/v1/rag/documents`, `/v1/rag/search` and delete routes
+provide the explicit vector-RAG contract.
 
-The response emits both an SSE `id` and a JSON `sequence`:
+## Security and data rules
 
-```text
-id: 14
-data: {"sequence":14,"type":"tool.completed","timestamp":...,"data":{...}}
-```
+- Provider secrets remain backend-owned and are not returned to the renderer.
+- Offline mode blocks network-bound tools; online mode is explicit.
+- MCP URL validation and SSRF protections remain in the Go gateway.
+- Runtime `data/`, SQLite WAL/SHM files, credentials, model weights and native
+  DLLs are not source-migration deletion targets.
+- The standalone Electron, sandbox and RAG service implementations are not
+  supported runtime dependencies after the unified migration.
 
-The frontend remembers the highest accepted sequence, ignores duplicate or
-older events, and reconnects with a bounded exponential backoff. Legacy events
-without sequence numbers remain renderable but cannot provide replay
-deduplication guarantees.
-
-## Backend-owned tool registry
-
-`backend/goengine/tools` owns tool names, descriptions, input schemas,
-capabilities, approval metadata, and enabled state. The gateway exposes:
-
-```text
-GET  /v1/tools
-POST /v1/tools/execute
-```
-
-The execution endpoint validates the requested tool against the registry and
-accepts legacy aliases for the existing web-search and URL-fetch tools. The
-existing SSRF and HTTPS checks remain in the execution adapter. Future MCP and
-HTTP adapters should register definitions here rather than trusting a tool
-name supplied by the renderer.
-
-## Migration rules
-
-1. Keep existing `/v1` routes and response fields stable while adapters move
-   behavior into application packages.
-2. Add new frontend API modules without removing `lib/api.ts` until all callers
-   have migrated.
-3. Keep localStorage chat persistence during conversation-repository work;
-   import it explicitly before introducing server-side deletion or migration.
-4. Do not resume a checkpoint containing an unfinished side effect without an
-   explicit idempotency/approval decision.
-5. Add repository and route tests before changing the storage implementation.
-
-## Remaining migration work
-
-Phase 2 storage migration is complete: `task_runs` is the canonical status row;
-the existing agent-run routes, wire statuses, event log, checkpoints, JSON
-import backups, and SSE cursors remain compatibility surfaces. The old
-`agent_runs` table is retained as an internal status/state projection until a
-later cleanup decision.
-
-- Move the agent execution loop from route files behind an `AgentRuntime`
-  interface.
-- Add durable conversation/message repositories and localStorage import.
-- Move provider routing and cloud calls fully behind the backend; never expose
-  provider secrets through renderer storage or logs.
-- Add approval records and policy decisions for high-impact tools.
-- Add cross-process locking or SQLite if multiple backend processes may share
-  the same data directory.
+For the staged source mapping, risks and validation evidence, see
+[`docs/UNIFIED_GO_MIGRATION_AUDIT.md`](UNIFIED_GO_MIGRATION_AUDIT.md).

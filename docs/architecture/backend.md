@@ -1,16 +1,17 @@
 # Backend architecture
 
-`backend/goengine/cmd/engine/main.go` performs flags, runtime selection,
-logging, signal handling, and server composition. Domain code remains in the
-existing module packages:
+The root Go module is the application authority. `cmd/engine` resolves
+portable paths, selects the native model backend, initializes SQLite, embeds
+the frontend and starts the authenticated HTTP server.
 
-- `server` registers stable HTTP routes and middleware.
-- `engine` selects hardware and runs llama.cpp/vLLM integrations.
-- `agentrun` owns run types, event sequencing, repositories, and legacy JSON
-  import.
-- `persistence` owns SQLite setup, migrations, integrity checks, and backups.
-- `security` owns authentication and secret-related helpers.
-- `tools` owns the backend tool registry and execution metadata.
+`server` owns routes, auth middleware, API serialization, SSE and SPA fallback.
+`engine` owns model discovery/loading and native runtime adapters. `workflow`
+and `agentrun` own durable execution state and recovery. `tools` owns tool
+metadata and capability declarations. `sandbox` and `rag` are in-process Go
+packages with explicit interfaces; isolated sandbox workers may remain child
+processes when configured.
 
-The `/v1` API and SSE replay contract are documented in
-[`docs/api-contract.md`](../api-contract.md).
+No Electron lifecycle, standalone Node service or mandatory Python service is
+part of the supported runtime. The default process registers the embedded
+frontend routes; `--server` uses the same server without registering those
+browser-facing routes and remains API-only.

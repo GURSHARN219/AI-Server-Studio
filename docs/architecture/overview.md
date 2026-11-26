@@ -1,17 +1,23 @@
 # Architecture overview
 
-AI Server Studio is a modular monolith with two local processes:
+AI Server Studio is a local-first modular Go application:
 
-1. Electron supervises the desktop renderer and the Go engine.
-2. The Go engine owns the authenticated HTTP API, model runtime, tools, and
-   SQLite persistence.
+```text
+Browser / embedded UI (Vite HMR is separate development tooling)
+        │ same-origin HTTP + SSE
+        ▼
+cmd/engine ── server ── auth / routes / events
+        ├── engine       native model loading and inference
+        ├── tools        capability registry and adapters
+        ├── sandbox      fail-closed isolated worker boundary
+        ├── rag          documents, chunks, embeddings, vector ranking
+        ├── workflow      durable DAG execution and recovery
+        └── persistence   SQLite, migrations and portable data
+```
 
-The application remains local-first. The existing Supabase functions and
-migrations are retained as legacy/migration surfaces and are not part of the
-desktop startup path.
-
-The current source boundaries are intentional. The Go module already separates
-server, inference, agent-run, persistence, security, and tools packages; it
-does not expose those packages as a reusable public SDK. Moving every package
-under `internal/` would change import paths without improving behavior, so
-only the executable entrypoint was moved to `cmd/engine`.
+Production React assets are embedded from `app/dist`. With no CLI arguments,
+the same Go process binds the API, serves the embedded UI and opens the actual
+listener URL after readiness. `--server` uses the same process in strict
+API-only mode: it does not open a browser and does not register frontend routes.
+Vite is a separate development command and is never started by the production
+executable.

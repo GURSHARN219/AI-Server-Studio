@@ -1,8 +1,0 @@
-{
-  "name": "sandbox",
-  "type": "local",
-  "entry": "./server.js",
-  "port": 4002,
-  "capabilities": ["local:compute", "local:exec"],
-  "tools": ["run_js", "run_python"]
-}

@@ -1,11 +1,15 @@
 # Frontend architecture
 
-The desktop application lives under `apps/desktop`. `src/api` centralizes
-HTTP, authentication, and SSE transport. `src/stores` owns renderer state;
-`src/hooks` contains reusable hooks; `src/components/ui` contains primitives;
-and domain components remain grouped by responsibility (`chat`, `settings`,
-`server`, `api-gateway`, `voice`, and `discover`).
+The React/Vite frontend lives under `app/`. `app/src/api` and `app/src/lib`
+centralize same-origin requests, authentication headers and SSE transport.
+Feature pages remain organized under `app/src/pages`, with chat, settings,
+models, workflows, voice and media components preserved from the prior UI.
 
-Electron code is isolated in `electron/`. The preload exposes a narrow IPC
-surface for engine and window lifecycle events. Development and packaged
-launches use explicit engine paths and an explicit `AI_SERVER_DATA_DIR`.
+Production output is `app/dist`; the root Go `frontend` package embeds it into
+the application binary. Development runs Vite directly with `npm run dev`; the
+production executable never starts Vite.
+
+Mermaid code blocks render in the browser through the maintained `mermaid`
+package. Generated SVG is validated before insertion, and loading, syntax and
+render failures are shown in the code block UI. There is no Mermaid rendering
+service dependency.

@@ -1,0 +1,154 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "./theme/tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+  }
+
+  html,
+  body {
+    overflow: hidden;
+  }
+
+  #root {
+    min-width: 0;
+    min-height: 0;
+  }
+
+  :root {
+    --background: 210 5% 7.5%;
+    --foreground: 220 15% 85%;
+    --card: 210 4% 10.2%;
+    --card-foreground: 220 15% 85%;
+    --popover: 210 3% 12.7%;
+    --popover-foreground: 220 15% 85%;
+    --primary: 215 70% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 4% 10.2%;
+    --secondary-foreground: 220 15% 70%;
+    --muted: 210 3% 12.7%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 215 50% 25%;
+    --accent-foreground: 215 70% 75%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 3% 17%;
+    --input: 210 3% 17%;
+    --ring: 215 70% 55%;
+    --radius: 0.5rem;
+
+    --sidebar-background: 210 5% 7.5%;
+    --sidebar-foreground: 220 10% 50%;
+    --sidebar-primary: 215 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 3% 12.7%;
+    --sidebar-accent-foreground: 220 15% 85%;
+    --sidebar-border: 210 3% 17%;
+    --sidebar-ring: 215 70% 55%;
+
+    --surface-hover: 210 3% 12.7%;
+    --surface-active: 210 3% 16%;
+    --text-code: 168 60% 65%;
+    --status-online: 142 70% 50%;
+    --status-downloading: 45 90% 55%;
+    --model-card: 210 4% 10.2%;
+    --titlebar: 210 3% 12.7%;
+    --statusbar: 210 5% 7.5%;
+    --tab-active: 210 4% 10.2%;
+    --tab-inactive: 210 5% 7.5%;
+    --user-bubble: 210 3% 12.7%;
+    --thinking-bg: 210 4% 10.2%;
+    --tool-link: 215 70% 55%;
+    --context-tag-bg: 210 3% 12.7%;
+    --context-tag-text: 220 15% 70%;
+    --titlebar-h: 28px;
+    --statusbar-h: 24px;
+  }
+
+  .light {
+    --background: 220 20% 97%;
+    --foreground: 224 24% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 24% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 24% 12%;
+    --primary: 215 85% 46%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 20% 93%;
+    --secondary-foreground: 224 18% 26%;
+    --muted: 220 18% 90%;
+    --muted-foreground: 220 10% 40%;
+    --accent: 215 80% 92%;
+    --accent-foreground: 220 35% 30%;
+    --destructive: 0 70% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 16% 84%;
+    --input: 220 18% 90%;
+    --ring: 215 85% 46%;
+
+    --sidebar-background: 220 20% 95%;
+    --sidebar-foreground: 220 14% 34%;
+    --sidebar-primary: 215 85% 46%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 18% 90%;
+    --sidebar-accent-foreground: 224 24% 12%;
+    --sidebar-border: 220 16% 86%;
+    --sidebar-ring: 215 85% 46%;
+
+    --surface-hover: 220 16% 92%;
+    --surface-active: 220 20% 89%;
+    --text-code: 168 65% 32%;
+    --status-online: 142 70% 38%;
+    --status-downloading: 45 90% 42%;
+    --model-card: 0 0% 100%;
+    --titlebar: 220 20% 95%;
+    --statusbar: 220 18% 94%;
+    --tab-active: 0 0% 100%;
+    --tab-inactive: 220 18% 93%;
+    --user-bubble: 220 18% 94%;
+    --thinking-bg: 220 18% 95%;
+    --tool-link: 215 85% 46%;
+    --context-tag-bg: 220 18% 92%;
+    --context-tag-text: 224 18% 28%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--scrollbar-thumb));
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--scrollbar-thumb-hover));
+}
+
+.studio-transition {
+  transition: all var(--transition-layout);
+}

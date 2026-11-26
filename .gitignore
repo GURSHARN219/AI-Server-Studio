@@ -5,25 +5,23 @@
 
 # Build outputs
 /dist/
+/app/dist/*
+!/app/dist/.gitkeep
+/app/wailsjs/
+/.wails/
 /dist-ssr/
 /electron-dist/
 /release/
-/extensions/
-/apps/desktop/dist/
-/apps/desktop/electron-dist/
-/apps/desktop/release/
-/apps/desktop/node_modules/
-/apps/desktop/.vite/
-/apps/desktop/out/
 *.timestamp-*
 
 # Local audit and tool metadata
+/graphify-out/
+/docs/
 /.archify/
 /supabase/.temp/
 /supabase/.branches/
 
 # Local runtime state and credentials (never source-controlled)
-/backend/goengine/data/
 **/auth_sessions.json
 **/agent-runs/
 **/migration-backups/
@@ -44,9 +42,6 @@
 *.keystore
 
 # Go build output (local dev binary)
-/backend/goengine/engine.exe
-/backend/goengine/*.exe
-/backend/goengine/bin/
 **/*.dll
 **/*.so
 **/*.dylib
@@ -59,6 +54,7 @@ bin/
 
 # Runtime data and temporary logs
 /data/
+**/.portable/
 logs/
 *.log
 *.zip

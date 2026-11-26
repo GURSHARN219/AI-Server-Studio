@@ -1,0 +1,14 @@
+{
+  "name": "AI-Server-Studio",
+  "version": "2",
+  "frontend:dir": "../../app",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "frontend:dev": "npm run dev",
+  "frontend:dev:watcher": "npm run dev",
+  "frontend:dev:serverUrl": "http://localhost:8080",
+  "build:dir": "../../build",
+  "outputfilename": "AI-Server-Studio.exe",
+  "build:tags": "wv2runtime.browser",
+  "wailsjsdir": "../../.wails"
+}

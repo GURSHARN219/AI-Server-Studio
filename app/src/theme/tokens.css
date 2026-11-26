@@ -1,0 +1,140 @@
+/* ==========================================================================
+   AI Server Studio — Single Source of Truth Design Tokens
+   All surfaces, borders, text, accents, states, and syntax colors live here.
+   Switch themes via `.dark` / `.light` on <html>.
+   ========================================================================== */
+
+:root,
+.light {
+  /* Surfaces */
+  --surface-canvas: 220 20% 96%;
+  --surface-card: 0 0% 100%;
+  --surface-elevated: 0 0% 100%;
+  --surface-subtle: 220 16% 95%;
+  --surface-hover: 220 16% 92%;
+  --surface-active: 220 20% 89%;
+  --surface-code: 220 20% 97%;
+  --surface-bubble-user: 220 18% 94%;
+  --surface-statusbar: 220 18% 95%;
+
+  /* Borders / Edges */
+  --edge-subtle: 220 16% 90%;
+  --edge-default: 220 15% 84%;
+  --edge-strong: 220 14% 72%;
+
+  /* Text / Ink */
+  --ink-primary: 224 26% 14%;
+  --ink-secondary: 222 14% 36%;
+  --ink-muted: 220 10% 52%;
+  --ink-inverse: 0 0% 100%;
+
+  /* Accent */
+  --accent-primary: 221 83% 56%;
+  --accent-primary-hover: 221 83% 49%;
+  --accent-soft: 221 90% 95%;
+  --accent-fg: 221 83% 44%;
+
+  /* Semantic States */
+  --state-success: 152 68% 36%;
+  --state-success-soft: 152 60% 93%;
+  --state-warning: 32 90% 44%;
+  --state-warning-soft: 36 95% 93%;
+  --state-danger: 0 72% 51%;
+  --state-danger-soft: 0 80% 95%;
+  --state-info: 210 85% 48%;
+  --state-info-soft: 210 90% 94%;
+
+  /* Diff Tokens */
+  --diff-add-bg: 145 65% 94%;
+  --diff-add-fg: 148 65% 30%;
+  --diff-del-bg: 0 75% 95%;
+  --diff-del-fg: 0 68% 44%;
+
+  /* Syntax Highlighting Tokens */
+  --syntax-keyword: 262 72% 48%;
+  --syntax-string: 152 62% 33%;
+  --syntax-type: 205 82% 40%;
+  --syntax-function: 221 80% 50%;
+  --syntax-number: 28 84% 44%;
+  --syntax-comment: 220 10% 56%;
+  --syntax-operator: 222 16% 42%;
+  --syntax-tag: 340 72% 46%;
+
+  /* Shadows (only for floating elements: popup, bubble, menus) */
+  --shadow-floating: 0 18px 42px -12px hsl(224 30% 12% / 0.16), 0 4px 14px -4px hsl(224 30% 12% / 0.08);
+  --shadow-menu: 0 10px 28px -6px hsl(224 30% 12% / 0.14), 0 2px 6px -2px hsl(224 30% 12% / 0.06);
+
+  /* Radii & Motion */
+  --radius-card: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.375rem;
+  --transition-layout: 250ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Scrollbar */
+  --scrollbar-thumb: 220 14% 80%;
+  --scrollbar-thumb-hover: 220 14% 68%;
+}
+
+.dark {
+  /* Surfaces */
+  --surface-canvas: 210 5% 7.5%;       /* #121314 */
+  --surface-card: 210 4% 10.2%;        /* #191A1B */
+  --surface-elevated: 210 3% 12.7%;    /* #202122 */
+  --surface-subtle: 210 4% 10.2%;      /* #191A1B */
+  --surface-hover: 210 3% 12.7%;       /* #202122 */
+  --surface-active: 210 3% 16%;
+  --surface-code: 210 5% 7.5%;         /* #121314 */
+  --surface-bubble-user: 210 3% 12.7%; /* #202122 */
+  --surface-statusbar: 210 5% 7.5%;    /* #121314 */
+
+  /* Borders / Edges */
+  --edge-subtle: 210 3% 17%;
+  --edge-default: 210 3% 22%;
+  --edge-strong: 210 3% 32%;
+
+  /* Text / Ink */
+  --ink-primary: 220 18% 92%;
+  --ink-secondary: 220 12% 70%;
+  --ink-muted: 220 10% 48%;
+  --ink-inverse: 210 5% 7.5%;
+
+  /* Accent */
+  --accent-primary: 217 88% 60%;
+  --accent-primary-hover: 217 88% 66%;
+  --accent-soft: 217 60% 18%;
+  --accent-fg: 217 90% 72%;
+
+  /* Semantic States */
+  --state-success: 152 65% 48%;
+  --state-success-soft: 152 45% 15%;
+  --state-warning: 36 92% 55%;
+  --state-warning-soft: 36 50% 15%;
+  --state-danger: 0 72% 60%;
+  --state-danger-soft: 0 50% 16%;
+  --state-info: 210 85% 60%;
+  --state-info-soft: 210 50% 16%;
+
+  /* Diff Tokens */
+  --diff-add-bg: 150 45% 14%;
+  --diff-add-fg: 150 65% 62%;
+  --diff-del-bg: 0 45% 15%;
+  --diff-del-fg: 0 75% 68%;
+
+  /* Syntax Highlighting Tokens */
+  --syntax-keyword: 268 80% 74%;
+  --syntax-string: 152 60% 60%;
+  --syntax-type: 198 85% 68%;
+  --syntax-function: 217 90% 72%;
+  --syntax-number: 30 88% 66%;
+  --syntax-comment: 220 10% 48%;
+  --syntax-operator: 220 14% 72%;
+  --syntax-tag: 342 80% 70%;
+
+  /* Shadows */
+  --shadow-floating: 0 20px 50px -12px hsl(225 40% 2% / 0.65), 0 4px 16px -4px hsl(225 40% 2% / 0.45);
+  --shadow-menu: 0 12px 30px -6px hsl(225 40% 2% / 0.55), 0 2px 8px -2px hsl(225 40% 2% / 0.35);
+
+  /* Scrollbar */
+  --scrollbar-thumb: 210 3% 27%;
+  --scrollbar-thumb-hover: 210 3% 37%;
+}

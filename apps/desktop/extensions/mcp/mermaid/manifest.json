@@ -1,8 +1,0 @@
-{
-  "name": "mermaid",
-  "type": "local",
-  "entry": "./server.js",
-  "port": 4003,
-  "capabilities": ["local:render"],
-  "tools": ["render_mermaid"]
-}

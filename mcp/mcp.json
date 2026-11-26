@@ -1,0 +1,8 @@
+{
+  "credentials": {
+    "plaintext": false,
+    "store": "windows-credential-manager"
+  },
+  "servers": [],
+  "version": 1
+}
